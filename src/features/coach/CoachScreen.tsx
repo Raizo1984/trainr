@@ -7,6 +7,7 @@ import { AnimatePresence } from 'motion/react'
 import { CalendarRange, CircleCheck, Sparkles } from 'lucide-react'
 import { Button, Card, EmptyState, SectionTitle, SourceNote } from '@/ui/primitives'
 import { AlertCard } from './AlertCard'
+import { BlockReviewCard } from './BlockReviewCard'
 import { useAlerts, useMonthlyRecap, useNutritionAlerts, useWeeklyCheckIn } from '@/store/selectors'
 import { useAppStore } from '@/store/useAppStore'
 
@@ -26,6 +27,8 @@ export default function CoachScreen() {
           Wat er opvalt in je data, en wat je eraan doet. Geen aanmoediging zonder aanleiding.
         </p>
       </header>
+
+      <BlockReviewCard />
 
       {alerts.length === 0 ? (
         <Card>

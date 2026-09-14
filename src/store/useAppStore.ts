@@ -32,6 +32,7 @@ export interface AppStore extends AppState {
   removeMeasurement: (id: string) => void
   addNutritionDay: (day: NutritionDay) => void
   confirmGate: (criterion: GateCriterionId, value: boolean) => void
+  setBlockFocus: (focus: 'massa' | 'kracht' | 'skill' | undefined) => void
   advancePhase: () => void
   setPhase: (phase: PhaseId) => void
   raiseMedicalHold: (reason: string) => void
@@ -102,6 +103,8 @@ export const useAppStore = create<AppStore>()(
         set((state) => ({
           phase: { ...state.phase, confirmations: { ...state.phase.confirmations, [criterion]: value } },
         })),
+
+      setBlockFocus: (focus) => set((state) => ({ phase: { ...state.phase, blockFocus: focus } })),
 
       advancePhase: () =>
         set((state) => {

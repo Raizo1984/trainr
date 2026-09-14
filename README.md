@@ -10,7 +10,7 @@ en proactieve coaching.
 ```bash
 npm install
 npm run dev      # ontwikkelserver
-npm test         # 70 tests op de beslisregels
+npm test         # 99 tests op de beslisregels
 npm run build    # typecheck + productiebundel
 ```
 
@@ -38,7 +38,10 @@ signalering zichtbaar wordt.
 | Voorschrift | `src/domain/prescribe.ts` | Van historie naar het voorschrift van vandaag |
 | Signalering | `src/domain/triggers.ts` | Pijn, techniek, plateau, opkomst, volume, gewrichtsplafond, RIR (secties 4.3, 9.2) |
 | Voeding | `src/domain/nutrition.ts` | Risicogebonden voedingsmodel en beschermingslagen (secties 5, 9.3) |
+| Blokken | `src/domain/blocks.ts` | Blokperiodisering fase 4, specialisatiecycli fase 5, onderhoud fase 6 (sectie 3.2) |
+| Skills | `src/domain/skills.ts` | Droomdoelen als route met toelatingseisen (secties 2.1, 3.2) |
 | Gates | `src/domain/gates.ts` | Criteria-gedreven faseovergang (secties 3.3, 6.4) |
+| Blokevaluatie | `src/domain/blockReview.ts` | Beslisboom in de deloadweek (sectie 6.3) |
 | Coaching | `src/domain/coaching.ts` | Wekelijkse check-in en maandrapport (secties 6.2, 7.1) |
 
 De domeinlaag is puur en kent geen React, storage of netwerk. Dat is bewust: de
@@ -66,7 +69,13 @@ kalender-gedreven. Pijn wordt beoordeeld op pieken en op het aandeel sessies bov
 de grens, niet op een gemiddelde: vier sessies met 0 en vier met 6 komen gemiddeld
 op 3 uit, terwijl dat precies het patroon is dat je niet wilt doorlaten.
 
-**4. Beschermend voedingsmodel** (`nutrition.ts`). Bij een verhoogd risico
+**4. Eén ding tegelijk zwaar** (`blocks.ts`). Vanaf fase 4 krijgt één
+bewegingspatroon zes weken de ruimte, de rest draait op onderhoud. Onderhoud is
+niet nul: wegvallen kost meer dan het oplevert. Fase 5 werkt met cycli van acht
+weken op massa, kracht of skill; fase 6 piekt eerst op de droomdoelen en gaat
+daarna naar drie sessies per week die je jaren volhoudt.
+
+**5. Beschermend voedingsmodel** (`nutrition.ts`). Bij een verhoogd risico
 verdwijnen calorieën, eetvensters en gewichtsdoelen uit de interface. Ze worden
 niet ontraden, ze zijn er niet. Dat verschil zit in het plan-object en niet in
 losse UI-checks, zodat het niet per ongeluk te omzeilen is.
@@ -99,6 +108,14 @@ Grafiekkleuren komen uit een palet dat op kleurenblindheidsscheiding en contrast
 gevalideerd in beide thema's. Statuskleuren (groen, amber, rood) zijn gereserveerd
 voor toestand en worden nooit als seriekleur gebruikt.
 
+## Droomdoelen zijn geen decoratie
+
+Elk droomdoel uit de intake hangt aan een progressielader met toelatingseisen. Een
+muscle-up opent pas na acht schone pull-ups en acht schone dips; tot die tijd staat
+er wat er nog ontbreekt, niet alleen dat het op slot zit. Wat opengaat wordt in de
+bestaande sessies opgenomen, maximaal twee tegelijk, want skillwerk telt gewoon mee
+in het volume van schouder en elleboog.
+
 ## Wat er nog niet in zit
 
 Bewust buiten scope gehouden, omdat het externe diensten of een backend vereist:
@@ -106,3 +123,7 @@ videoanalyse van techniek (sectie 7.2), wearable- en voedingsapp-koppelingen
 (sectie 8.1), fotoanalyse, en pushnotificaties. De coachingmomenten uit sectie 7.1
 zijn wel geïmplementeerd, maar bereiken de gebruiker in de app in plaats van via
 push of SMS.
+
+Ook nog open: de bewegingskwaliteit-nulmeting uit sectie 6.1 (squatdiepte,
+heupscharnier, scapulacontrole) en het zelfbeoordelingsformulier voor techniek dat
+sectie 7.2 zonder video-AI zou kunnen vervangen.

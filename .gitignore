@@ -4,3 +4,4 @@ dist
 *.local
 coverage
 e2e/*.png
+tsconfig.tsbuildinfo

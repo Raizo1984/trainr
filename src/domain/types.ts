@@ -537,6 +537,11 @@ export interface PhaseState {
   /** Handmatig bevestigde gate-criteria (bron `bevestiging`). */
   confirmations: Partial<Record<GateCriterionId, boolean>>
   history: Array<{ phase: PhaseId; from: IsoDate; to: IsoDate }>
+  /**
+   * Zelfgekozen focus voor de specialisatiecyclus in fase 5 (sectie 3.2).
+   * Leeg betekent: de app rouleert massa, kracht en skill.
+   */
+  blockFocus?: 'massa' | 'kracht' | 'skill'
 }
 
 export interface AppState {

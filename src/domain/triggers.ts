@@ -141,33 +141,71 @@ export function formAlerts(sessions: SessionLog[]): CoachAlert[] {
   return alerts
 }
 
-/** Trigger 3: stilstand. */
+/**
+ * Trigger 3: stilstand.
+ *
+ * Eén oefening die stilstaat is een oefeningprobleem. Staat het merendeel
+ * stil, dan is het een herstel- of planningsprobleem en hoort daar één melding
+ * over te komen in plaats van acht identieke kaarten. Dat onderscheid staat
+ * ook in de beslisboom van sectie 6.3.
+ */
 export function plateauAlerts(sessions: SessionLog[]): CoachAlert[] {
-  const alerts: CoachAlert[] = []
   const ladderIds = [...new Set(sessions.flatMap((s) => s.exercises.map((e) => e.ladderId)))]
-  for (const ladderId of ladderIds) {
-    const check = detectPlateau(sessions, ladderId)
-    if (!check.stalled) continue
-    alerts.push(
+  const stalled = ladderIds
+    .map((ladderId) => detectPlateau(sessions, ladderId))
+    .filter((check) => check.stalled)
+
+  if (stalled.length === 0) return []
+
+  const evaluated = ladderIds.filter((id) => detectPlateau(sessions, id).stalledSessions >= 3).length
+  const widespread = stalled.length >= 3 && (evaluated === 0 || stalled.length / Math.max(1, evaluated) >= 0.6)
+
+  if (widespread) {
+    const recent = lastNDays(sessions, 21)
+    const sleep = recent.length > 0 ? recent.reduce((t, s) => t + s.vitals.sleepQuality, 0) / recent.length : null
+    const names = stalled.map((c) => getLadder(c.ladderId).name)
+    return [
       alert({
-        id: `plateau-${ladderId}`,
+        id: 'plateau-breed',
         code: 'plateau',
         severity: 'info',
-        title: `${getLadder(ladderId).name} staat stil`,
-        body: `${check.stalledSessions} sessies op dezelfde belasting zonder extra reps. Vaak is dat herstel, niet het programma.`,
-        action: 'Loop eerst slaap, stress en eiwit na. Klopt dat alles, kies dan één aanpassing.',
-        source: 'Sectie 4.3, trigger 3',
-        subject: ladderId,
+        title: `${stalled.length} oefeningen staan tegelijk stil`,
+        body:
+          sleep !== null && sleep < 3
+            ? `Onder andere ${names.slice(0, 3).join(', ')}. Je slaap staat op ${Math.round(sleep * 10) / 10} van 5. Als alles tegelijk stilvalt, ligt de oorzaak zelden in het programma.`
+            : `Onder andere ${names.slice(0, 3).join(', ')}. Als alles tegelijk stilvalt, ligt de oorzaak zelden in de oefeningen zelf.`,
+        action:
+          sleep !== null && sleep < 3
+            ? 'Herstel eerst op orde: slaap en eiwit. Het programma blijft ongewijzigd tot dat staat.'
+            : 'Loop slaap, stress en eiwit na. Kloppen die, dan is dit een natuurlijk plateau en is een vervroegde deloadweek de zuinigste zet.',
+        source: 'Secties 4.3 trigger 3 en 6.3',
         options: [
-          'Eén set toevoegen aan deze oefening, maximaal één keer per week per spiergroep',
-          'Variant kiezen: andere hoek, tempo of bereik',
           'Vervroegde deloadweek inlassen',
-          'Accepteren dat dit een natuurlijk plateau is en de focus verleggen',
+          'Herstel aanpakken: slaap, eiwit, stress',
+          'Accepteren als natuurlijk plateau en de focus verleggen',
         ],
       }),
-    )
+    ]
   }
-  return alerts
+
+  return stalled.map((check) =>
+    alert({
+      id: `plateau-${check.ladderId}`,
+      code: 'plateau',
+      severity: 'info',
+      title: `${getLadder(check.ladderId).name} staat stil`,
+      body: `${check.stalledSessions} sessies op dezelfde belasting zonder extra reps. Vaak is dat herstel, niet het programma.`,
+      action: 'Loop eerst slaap, stress en eiwit na. Klopt dat alles, kies dan één aanpassing.',
+      source: 'Sectie 4.3, trigger 3',
+      subject: check.ladderId,
+      options: [
+        'Eén set toevoegen aan deze oefening, maximaal één keer per week per spiergroep',
+        'Variant kiezen: andere hoek, tempo of bereik',
+        'Vervroegde deloadweek inlassen',
+        'Accepteren dat dit een natuurlijk plateau is en de focus verleggen',
+      ],
+    }),
+  )
 }
 
 /** Trigger 4: opkomst. Nooit veroordelend formuleren (sectie 7.1, moment 4). */

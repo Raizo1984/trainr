@@ -31,6 +31,7 @@ import {
 } from '@/store/selectors'
 import { lastNDays, peakPain, weeklyVolume } from '@/domain/analytics'
 import { AlertCard } from '@/features/coach/AlertCard'
+import { BlockReviewCard } from '@/features/coach/BlockReviewCard'
 
 export default function Dashboard({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
   const name = useAppStore((s) => s.intake.name)
@@ -129,6 +130,8 @@ export default function Dashboard({ onNavigate }: { onNavigate: (tab: Tab) => vo
           </div>
         </Card>
       )}
+
+      <BlockReviewCard delay={0.09} />
 
       {topAlert && (
         <div>
