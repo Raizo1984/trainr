@@ -542,6 +542,39 @@ export interface MovementAssessment {
 }
 
 /* ------------------------------------------------------------------ */
+/* Planaanpassingen                                                     */
+/* ------------------------------------------------------------------ */
+
+export type AdjustmentKind =
+  | 'sets-omhoog'
+  | 'sets-omlaag'
+  | 'trede-omlaag'
+  | 'trede-omhoog'
+  | 'oefening-pauzeren'
+  | 'repbereik-wijzigen'
+  | 'deload-vervroegen'
+  | 'frequentie-omlaag'
+
+export type AdjustmentSource = 'regel' | 'coach'
+
+export interface PlanAdjustment {
+  id: string
+  kind: AdjustmentKind
+  /** Op welke lader de aanpassing slaat. Leeg betekent: hele programma. */
+  ladderId?: string
+  amount?: number
+  repMin?: number
+  repMax?: number
+  reason: string
+  source: AdjustmentSource
+  createdAt: IsoDate
+  /** Vervalt automatisch na dit aantal weken. Leeg betekent: tot intrekking. */
+  expiresAfterWeeks?: number
+  /** Door de gebruiker geaccepteerd. Voorstellen wachten hierop. */
+  accepted: boolean
+}
+
+/* ------------------------------------------------------------------ */
 /* Applicatiestatus                                                     */
 /* ------------------------------------------------------------------ */
 
@@ -560,6 +593,8 @@ export interface PhaseState {
 
 export interface AppState {
   intake: IntakeData
+  /** Actieve en voorgestelde planaanpassingen (adapt.ts). */
+  adjustments: PlanAdjustment[]
   /** Bewegingskwaliteit-beoordelingen (sectie 6.1), nieuwste laatst. */
   movementAssessments: MovementAssessment[]
   risk: RiskAssessment | null

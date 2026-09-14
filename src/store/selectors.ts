@@ -17,6 +17,7 @@ import { monthlyRecap, weeklyCheckIn } from '@/domain/coaching'
 import { blockPlan } from '@/domain/blocks'
 import { reviewBlock } from '@/domain/blockReview'
 import { activeSkillLadders, progressForGoals } from '@/domain/skills'
+import { applyAdjustments, deloadForcedEarly, proposeAdjustments, type ValidationContext } from '@/domain/adapt'
 
 export function useSafety() {
   return useAppStore((s) => s.risk?.safety ?? DEFAULT_SAFETY)
@@ -57,11 +58,45 @@ export function useTemplates(): SessionTemplate[] {
   const safety = useSafety()
   const week = usePhaseWeek()
 
+  const adjustments = useAppStore((s) => s.adjustments)
+
   return useMemo(() => {
     const skills = activeSkillLadders(sessions, goals, phaseId)
-    const templates = buildTemplates({ phase: phaseId, equipment, safety, week, skills, focus })
-    return isDeloadWeek(week, safety) ? templates.map(applyDeload) : templates
-  }, [phaseId, equipment, safety, week, sessions, goals, focus])
+    const base = buildTemplates({ phase: phaseId, equipment, safety, week, skills, focus })
+    // Geaccepteerde aanpassingen gaan vóór de deload: een deloadweek halveert
+    // wat er na de aanpassing overblijft, niet wat er zonder zou staan.
+    const adapted = applyAdjustments(base, adjustments)
+    const deload = deloadForcedEarly(adjustments) || isDeloadWeek(week, safety)
+    return deload ? adapted.map(applyDeload) : adapted
+  }, [phaseId, equipment, safety, week, sessions, goals, focus, adjustments])
+}
+
+/** Context die de veiligheidspoort nodig heeft om een aanpassing te beoordelen. */
+export function useValidationContext(): ValidationContext {
+  const state = useAppStore()
+  const phase = useCurrentPhase()
+  const week = usePhaseWeek()
+  const safety = useSafety()
+  return useMemo(() => ({ state, safety, phase, phaseWeek: week }), [state, safety, phase, week])
+}
+
+/**
+ * Voorstellen van de regelmotor die nog niet in de status staan.
+ * Dubbele voorstellen voor dezelfde oefening en soort worden weggelaten.
+ */
+export function usePendingProposals() {
+  const ctx = useValidationContext()
+  const existing = useAppStore((s) => s.adjustments)
+  return useMemo(() => {
+    const seen = new Set(existing.map((a) => `${a.kind}:${a.ladderId ?? ''}`))
+    return proposeAdjustments(ctx).filter((p) => !seen.has(`${p.kind}:${p.ladderId ?? ''}`))
+  }, [ctx, existing])
+}
+
+/** Aanpassingen die de gebruiker heeft geaccepteerd en die nu gelden. */
+export function useActiveAdjustments() {
+  const adjustments = useAppStore((s) => s.adjustments)
+  return useMemo(() => adjustments.filter((a) => a.accepted), [adjustments])
 }
 
 /**
@@ -82,10 +117,19 @@ export function useBlockReview() {
 export function useDeloadInfo() {
   const safety = useSafety()
   const week = usePhaseWeek()
-  return useMemo(
-    () => ({ isDeload: isDeloadWeek(week, safety), weeksUntil: weeksUntilDeload(week, safety), week }),
-    [safety, week],
-  )
+  const adjustments = useAppStore((s) => s.adjustments)
+  return useMemo(() => {
+    // Een geaccepteerde vervroeging maakt van deze week een deloadweek. De
+    // vaste cyclus loopt daarna gewoon door: een deload naar voren halen mag,
+    // overslaan niet.
+    const forced = deloadForcedEarly(adjustments)
+    return {
+      isDeload: forced || isDeloadWeek(week, safety),
+      weeksUntil: forced ? 0 : weeksUntilDeload(week, safety),
+      week,
+      forcedEarly: forced,
+    }
+  }, [safety, week, adjustments])
 }
 
 export function useNutritionPlan(): NutritionPlan {

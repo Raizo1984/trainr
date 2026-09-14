@@ -11,6 +11,7 @@ import { useAppStore } from '@/store/useAppStore'
 import { useCurrentPhase, useDeloadInfo, useGate, usePhaseWeek, useTemplates } from '@/store/selectors'
 import { PHASES } from '@/domain/phases'
 import { BlockCard, SkillPathsCard } from './BlockCard'
+import { ActiveAdjustmentsCard } from '@/features/adapt/AdjustmentCards'
 import { getStep } from '@/domain/exercises'
 import type { GateStatus } from '@/domain/types'
 
@@ -60,6 +61,8 @@ export default function PlanScreen() {
       </Card>
 
       <BlockCard />
+
+      <ActiveAdjustmentsCard delay={0.06} />
 
       <Card delay={0.05}>
         <SectionTitle

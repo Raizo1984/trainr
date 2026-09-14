@@ -70,6 +70,7 @@ export function emptyState(): AppState {
     risk: null,
     phase: emptyPhaseState(),
     sessions: [],
+    adjustments: [],
     measurements: [],
     movementAssessments: [],
     nutritionDays: [],

@@ -9,10 +9,15 @@ en proactieve coaching.
 
 ```bash
 npm install
-npm run dev      # ontwikkelserver
-npm test         # 109 tests op de beslisregels
-npm run build    # typecheck + productiebundel
+npm run dev         # frontend, poort 5173
+npm run dev:server  # backend voor de coach, poort 3001
+npm test            # 155 tests op de beslisregels
+npm run build       # typecheck (app en server) + productiebundel
+npm start           # serveert de gebouwde app plus de coach-API
 ```
+
+Zonder `ANTHROPIC_API_KEY` werkt alles behalve de gesprekscoach. De adaptieve
+planner heeft geen internet nodig.
 
 Doorloop in een echte browser, tegen een draaiende `npm run preview`:
 
@@ -43,6 +48,9 @@ signalering zichtbaar wordt.
 | Gates | `src/domain/gates.ts` | Criteria-gedreven faseovergang (secties 3.3, 6.4) |
 | Blokevaluatie | `src/domain/blockReview.ts` | Beslisboom in de deloadweek (sectie 6.3) |
 | Bewegingskwaliteit | `src/domain/movement.ts` | Nulmeting van de bewegingspatronen (secties 6.1, 7.2) |
+| Adaptieve planner | `src/domain/adapt.ts` | Past het plan daadwerkelijk aan, met een veiligheidspoort die geen enkele bron passeert |
+| Coachcontext | `src/domain/coachContext.ts` | De samenvatting die de taalmodel-laag te zien krijgt |
+| Backend | `server/` | Houdt de API-sleutel vast en praat met Claude |
 | Coaching | `src/domain/coaching.ts` | Wekelijkse check-in en maandrapport (secties 6.2, 7.1) |
 
 De domeinlaag is puur en kent geen React, storage of netwerk. Dat is bewust: de
@@ -89,6 +97,51 @@ losse UI-checks, zodat het niet per ongeluk te omzeilen is.
   gewricht en trainen tot falen leiden tot een melding met een concrete handeling.
 - Deloads zijn automatisch en niet overslaanbaar.
 - Elk advies draagt een bronvermelding naar de sectie waaruit de regel komt.
+
+## De AI-coach
+
+Twee lagen, en de volgorde is niet vrijblijvend.
+
+**Laag 1, de adaptieve planner** (`adapt.ts`) is deterministisch. Hij leidt uit
+je logs, gewicht en voeding af welke aanpassing het programma nodig heeft, en
+past die na akkoord echt toe: sets erbij of eraf, een trede terug, een oefening
+pauzeren, een deload naar voren halen. Werkt offline en kost niets.
+
+**Laag 2, de gesprekscoach** draait op Claude via de backend in `server/`. Hij
+leest een samenvatting van je data en kan aanpassingen voorstellen.
+
+Wat de twee lagen scheidt is de veiligheidspoort. Elk voorstel, of het nu van de
+regelmotor of van het taalmodel komt, gaat langs `validateAdjustment`. Die poort
+laat onder meer niet door:
+
+- zwaarder maken bij pijn op of boven je persoonlijke grens
+- zwaarder maken terwijl de techniek nog niet staat
+- welke wijziging dan ook tijdens een medische pauze
+- volume erbij vlak voor een verplichte deload
+- meer dan één variabele tegelijk
+- een trede omhoog voordat de bovenkant van het repbereik gehaald is
+
+Een voorstel dat te ver gaat wordt teruggeknipt in plaats van geweigerd: drie
+sets erbij worden er één, en de gebruiker ziet waarom. En een voorstel verandert
+niets tot je het accepteert. Een coach die ongevraagd je plan herschrijft is geen
+coach maar een verrassing.
+
+De opbouwgrens begrenst de **snelheid**, niet de stap. Eén set is de kleinste
+stap die bestaat; bij een streng risicoprofiel is die stap al meer dan de
+weekgrens toestaat. Zonder die nuance zou juist de gebruiker die de meeste
+bescherming nodig heeft als enige nooit meer vooruit kunnen.
+
+### Sleutel en kosten
+
+De sleutel staat uitsluitend op de server, in de Replit Secrets onder
+`ANTHROPIC_API_KEY`. Hij komt nooit in de browser: alles wat de browser kent kan
+iedere bezoeker met de ontwikkelaarsconsole uitlezen. Reken op ongeveer een tot
+drie cent per coachgesprek.
+
+De coach krijgt een samenvatting, geen dump: geen naam, geen geboortejaar, geen
+vrije notities uit de intake. Sectie 8.2 schrijft voor dat er niet meer wordt
+verzameld dan de coaching nodig heeft, en elke overbodige regel kost tokens
+zonder het advies beter te maken.
 
 ## Mobiel
 
