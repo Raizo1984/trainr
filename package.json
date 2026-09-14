@@ -17,7 +17,8 @@
     "e2e:coach": "node e2e/coach-integration.mjs",
     "size": "node scripts/size-budget.mjs",
     "icons": "node scripts/icons.mjs",
-    "e2e:offline": "node e2e/offline.mjs"
+    "e2e:offline": "node e2e/offline.mjs",
+    "e2e:speech": "node e2e/speech.mjs"
   },
   "repository": {
     "type": "git",

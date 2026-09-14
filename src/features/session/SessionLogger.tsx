@@ -6,7 +6,7 @@
  * RIR aan te tikken.
  */
 
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   ChevronDown,
@@ -17,6 +17,8 @@ import {
   Pause,
   Plus,
   Save,
+  Mic,
+  MicOff,
   OctagonX,
   Trash2,
   TriangleAlert,
@@ -44,6 +46,8 @@ import { todayIso } from '@/domain/analytics'
 import { BODY_REGIONS, REGION_LABEL } from '@/domain/types'
 import type { BodyRegion, ExerciseLog, LadderStep, Pain, Scale5, SessionLog, SetEntry } from '@/domain/types'
 import { feedbackForSet, verdictTone } from '@/domain/setFeedback'
+import { parseSpokenSet } from '@/domain/speech'
+import { useSpeech } from '@/ui/useSpeech'
 
 type Draft = Record<string, SetEntry[]>
 
@@ -408,6 +412,15 @@ function ExerciseCard({
                 />
               ))}
 
+              <SpeechSetButton
+                onVelden={(velden) => {
+                  if (sets.length === 0) return
+                  update(sets.length - 1, velden)
+                }}
+                actief={sets.length > 0}
+                bodyweight={bodyweight}
+              />
+
               <SetVerdictPanel
                 sets={sets}
                 prescription={prescription}
@@ -427,6 +440,80 @@ function ExerciseCard({
         )}
       </AnimatePresence>
     </motion.section>
+  )
+}
+
+/**
+ * Een set inspreken in plaats van typen.
+ *
+ * Vult de laatst toegevoegde set aan; het overschrijft dus wat je zegt en laat
+ * de rest staan. Bewust geen nieuwe set aanmaken: dan zou een misverstane zin
+ * er stilletjes een regel bij zetten die je niet getraind hebt.
+ *
+ * Wat er begrepen is, komt in beeld voordat het iets doet. Je moet kunnen zien
+ * dat er 50 kilo staat en niet 15.
+ */
+function SpeechSetButton({
+  onVelden,
+  actief,
+  bodyweight,
+}: {
+  onVelden: (velden: Partial<SetEntry>) => void
+  actief: boolean
+  bodyweight: boolean
+}) {
+  const [uitkomst, setUitkomst] = useState<string | null>(null)
+  const verwerk = useCallback(
+    (zin: string) => {
+      const { velden, probleem } = parseSpokenSet(zin)
+      if (probleem || Object.keys(velden).length === 0) {
+        setUitkomst(probleem ?? 'Niets herkend.')
+        return
+      }
+      onVelden(velden as Partial<SetEntry>)
+      const delen: string[] = []
+      if (velden.reps !== undefined) delen.push(`${velden.reps} reps`)
+      if (velden.load !== undefined && !bodyweight) delen.push(`${velden.load} kg`)
+      if (velden.rir !== undefined) delen.push(`RIR ${velden.rir}`)
+      if (velden.pain !== undefined) delen.push(`pijn ${velden.pain}`)
+      if (velden.formQuality !== undefined) delen.push(`techniek ${velden.formQuality}`)
+      setUitkomst(`Ingevuld: ${delen.join(', ')}`)
+    },
+    [onVelden, bodyweight],
+  )
+
+  const spraak = useSpeech(verwerk)
+  if (!spraak.beschikbaar || !actief) return null
+
+  return (
+    <div className="space-y-1.5">
+      <button
+        onClick={() => (spraak.luistert ? spraak.stop() : (setUitkomst(null), spraak.start()))}
+        className={cx(
+          'flex w-full items-center justify-center gap-2 rounded-xl border py-2.5 text-[13px] font-medium transition-colors',
+          spraak.luistert
+            ? 'border-transparent text-white'
+            : 'border-line text-ink-2 hover:border-line-strong hover:text-ink',
+        )}
+        style={spraak.luistert ? { background: 'var(--brand-1)' } : undefined}
+        aria-label={spraak.luistert ? 'Stop met luisteren' : 'Set inspreken'}
+      >
+        {spraak.luistert ? <MicOff className="size-4" /> : <Mic className="size-4" />}
+        {spraak.luistert ? 'Luistert, spreek je set in' : 'Set inspreken'}
+      </button>
+
+      {(spraak.tekst || uitkomst || spraak.fout) && (
+        <p className="px-1 text-[12px] leading-snug text-ink-3" aria-live="polite">
+          {spraak.fout ?? (spraak.luistert && spraak.tekst ? `"${spraak.tekst}"` : uitkomst)}
+        </p>
+      )}
+
+      {!spraak.luistert && !uitkomst && !spraak.fout && (
+        <p className="px-1 text-[11.5px] text-ink-3">
+          Bijvoorbeeld: "tien reps {bodyweight ? 'techniek vier' : 'vijftig kilo'} rir drie".
+        </p>
+      )}
+    </div>
   )
 }
 

@@ -31,11 +31,40 @@ npm run e2e:mobile   # elk scherm op 390 pixels: overflow en raakvlakken
 npm run e2e:coach    # controleert wat er werkelijk naar OpenAI gaat, zonder sleutel
 npm run size         # bewaakt wat het eerste scherm over de lijn haalt
 npm run e2e:offline  # start de app opnieuw met het netwerk uit
+npm run e2e:speech   # spreekt een set in via een nepherkenner
 ```
 
 `e2e:coach` start een nepserver die zich voordoet als OpenAI en controleert het
 verzoek dat de backend verstuurt. Typecontrole ziet niet of een veldnaam klopt
 met wat de API verwacht; deze controle wel, en hij kost geen tokens.
+
+## Een set inspreken
+
+Typen tussen twee sets door is het grootste ongemak in de zaal: bezwete handen,
+telefoon op de bank, en je wilt door. De microfoonknop onder de setlijst vult de
+laatste set in met wat je zegt, bijvoorbeeld "tien reps vijftig kilo rir drie".
+
+Dit loopt volledig op het toestel via de spraakherkenning van de browser. Er
+gaat geen audio naar onze server, er is geen sleutel voor nodig en het kost
+niets per set. Kan de browser het niet, dan verschijnt de knop niet: een knop
+die niets doet is erger dan geen knop.
+
+Het begrijpen zelf staat in `src/domain/speech.ts`, los van het scherm, zodat
+elke zin te testen is. Twee keuzes daarin:
+
+- Liever niets invullen dan iets verkeerds. Een veld dat niet eenduidig uit de
+  zin volgt blijft leeg, en waarden buiten een geloofwaardig bereik worden
+  genegeerd.
+- "tien vijftig" wordt bewust niet geraden. Het verschil tussen tien reps van
+  vijftig kilo en vijftig reps van tien kilo is te groot om naar te gokken.
+
+Let op de richting van een getal in het Nederlands: bij een eenheid staat het
+ervoor ("50 kilo"), bij een label erachter ("rir 3"). Behandel je dat als één
+geval, dan leest "10 reps 50 kilo" als vijftig reps.
+
+`npm run e2e:speech` vervangt de herkenner door een nepversie met een vaste zin
+en controleert daarna de echte keten: parsen, invullen en het oordeel dat erop
+volgt.
 
 ## Zonder bereik
 
