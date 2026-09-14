@@ -66,18 +66,24 @@ function ex(
 /** Vaste warming-up, elke sessie identiek (sectie 3.3). */
 function warmup(ctx: BuildContext): PrescribedExercise[] {
   return [
-    ex('warmup-cardio', ctx, { sets: 1, repMin: 5, repMax: 5, fixed: true, note: '5 minuten rustig, praten moet kunnen' }),
-    ex('birddog', ctx, { sets: 2, repMin: 8, repMax: 8, fixed: true, note: 'Per kant' }),
+    ex('warmup-cardio', ctx, { sets: 5, repMin: 1, repMax: 1, fixed: true, rungCap: 1, note: '5 minuten rustig, praten moet kunnen' }),
+    ex('birddog', ctx, { sets: 2, repMin: 8, repMax: 8, fixed: true, rungCap: 1, note: 'Per kant' }),
     ex('rear-delt', ctx, { sets: 2, repMin: 15, repMax: 15, fixed: true, rungCap: 1 }),
   ]
 }
 
-/** Vaste cool-down, elke sessie identiek (sectie 3.3). */
+/**
+ * Vaste cool-down, elke sessie identiek (sectie 3.3).
+ *
+ * De treden staan hier vast. Warming-up en cool-down zijn geen plek voor
+ * progressie: ze moeten elke sessie hetzelfde voelen, ook als de gebruiker
+ * inmiddels zwaardere varianten aankan.
+ */
 function cooldown(ctx: BuildContext): PrescribedExercise[] {
   return [
-    ex('calf', ctx, { sets: 2, repMin: 15, repMax: 15, fixed: true, note: 'Vanaf een opstapje, volledige range' }),
-    ex('tibialis', ctx, { sets: 2, repMin: 15, repMax: 15, fixed: true, note: 'Hakken tegen de muur' }),
-    ex('mobility-hip', ctx, { sets: 1, repMin: 1, repMax: 1, fixed: true, note: '1 minuut per been' }),
+    ex('calf', ctx, { sets: 2, repMin: 15, repMax: 15, fixed: true, rungCap: 2, note: 'Vanaf een opstapje, volledige range' }),
+    ex('tibialis', ctx, { sets: 2, repMin: 15, repMax: 15, fixed: true, rungCap: 1, note: 'Hakken tegen de muur' }),
+    ex('mobility-hip', ctx, { sets: 1, repMin: 1, repMax: 1, fixed: true, rungCap: 1, note: '1 minuut per been' }),
   ]
 }
 

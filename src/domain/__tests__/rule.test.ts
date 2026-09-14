@@ -206,3 +206,37 @@ describe('hulpfuncties', () => {
     expect(exerciseVolume(bw)).toBe(400)
   })
 })
+
+describe('voorschrift uit historie', () => {
+  it('neemt het oordeel van The Rule over in de volgende sessie', async () => {
+    const { prescribeExercise } = await import('../prescribe')
+    const { makeExercise, makeSession, makeSet } = await import('./factories')
+    const previous = makeSession('2026-02-01', [
+      makeExercise('squat', 'squat-3', [
+        makeSet({ reps: 12, load: 50 }),
+        makeSet({ reps: 12, load: 50 }),
+        makeSet({ reps: 12, load: 50 }),
+      ]),
+    ])
+    const result = prescribeExercise(
+      [previous],
+      { ladderId: 'squat', stepId: 'squat-3', sets: 3, repMin: 8, repMax: 12, targetRir: 3 },
+      safety,
+    )
+    expect(result.decision?.action).toBe('belasting-verhogen')
+    expect(result.load).toBe(52.5)
+    expect(result.lastTime).toBe('Vorige keer: 50 kg, 12-12-12 reps')
+  })
+
+  it('geeft een leeg voorschrift terug zonder historie', async () => {
+    const { prescribeExercise } = await import('../prescribe')
+    const result = prescribeExercise(
+      [],
+      { ladderId: 'squat', stepId: 'squat-1', sets: 3, repMin: 8, repMax: 12, targetRir: 3 },
+      safety,
+    )
+    expect(result.decision).toBeNull()
+    expect(result.lastTime).toBeNull()
+    expect(result.stepId).toBe('squat-1')
+  })
+})

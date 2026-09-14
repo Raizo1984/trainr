@@ -282,10 +282,14 @@ export function advanceStep(ladderId: string, stepId: string): LadderStep | null
  */
 export function selectStep(ladderId: string, equipment: Equipment[], maxRung: number): LadderStep {
   const ladder = getLadder(ladderId)
+  // Een oefening die geen apparatuur nodig heeft, kan iedereen doen. Zonder deze
+  // regel zou een sportschoolgebruiker geen push-up of calf raise voorgeschreven
+  // krijgen, puur omdat "alleen lichaamsgewicht" niet is aangevinkt.
+  const available: Equipment[] = equipment.includes('geen') ? equipment : [...equipment, 'geen']
   const usable = ladder.steps.filter(
-    (s) => s.rung <= maxRung && s.equipment.some((e) => equipment.includes(e)),
+    (s) => s.rung <= maxRung && s.equipment.some((e) => available.includes(e)),
   )
   if (usable.length > 0) return usable[usable.length - 1]
-  const anyUsable = ladder.steps.filter((s) => s.equipment.some((e) => equipment.includes(e)))
+  const anyUsable = ladder.steps.filter((s) => s.equipment.some((e) => available.includes(e)))
   return anyUsable[0] ?? ladder.steps[0]
 }

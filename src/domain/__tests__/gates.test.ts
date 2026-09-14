@@ -117,3 +117,23 @@ describe('programmageneratie', () => {
     expect(isDeloadWeek(4, { ...DEFAULT_SAFETY, deloadIntervalWeeks: 4 })).toBe(true)
   })
 })
+
+describe('oefeningselectie', () => {
+  it('schrijft bodyweight-oefeningen ook voor aan een sportschoolgebruiker', () => {
+    const [template] = buildTemplates({ phase: 1, equipment: ['sportschool', 'machines'], safety: DEFAULT_SAFETY, week: 3 })
+    const calf = template.cooldown.find((e) => e.ladderId === 'calf')
+    // Zonder de regel dat "geen apparatuur nodig" voor iedereen geldt, bleef dit
+    // op de laagste trede hangen terwijl de gebruiker verder kan.
+    expect(calf?.stepId).toBe('calf-2')
+    // Blok 1 begrenst de lader op trede 2; de push-up blijft dus op incline.
+    expect(template.main.find((e) => e.ladderId === 'h-push')?.stepId).toBe('push-2')
+
+    const [block2] = buildTemplates({ phase: 1, equipment: ['sportschool', 'machines'], safety: DEFAULT_SAFETY, week: 5 })
+    expect(block2.main.find((e) => e.ladderId === 'h-push')?.stepId).toBe('push-3')
+  })
+
+  it('valt terug op lichaamsgewicht als er geen apparatuur is', () => {
+    const [template] = buildTemplates({ phase: 1, equipment: ['geen'], safety: DEFAULT_SAFETY, week: 3 })
+    expect(template.main.find((e) => e.ladderId === 'squat')?.stepId).toMatch(/^squat-[12]$/)
+  })
+})

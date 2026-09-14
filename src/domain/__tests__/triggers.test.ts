@@ -184,3 +184,15 @@ describe('krachtverlies', () => {
     expect(strengthDeclining(sessions)).toBe(true)
   })
 })
+
+describe('weekaggregatie', () => {
+  it('markeert een week als deload zodra er een deloadsessie in zit', async () => {
+    const { weeklyVolume } = await import('../analytics')
+    const weeks = weeklyVolume([
+      makeSession('2026-01-05', [makeExercise('squat', 'squat-3', [makeSet({ reps: 10 })])]),
+      makeSession('2026-01-07', [makeExercise('squat', 'squat-3', [makeSet({ reps: 10 })])], { isDeload: true }),
+      makeSession('2026-01-12', [makeExercise('squat', 'squat-3', [makeSet({ reps: 10 })])]),
+    ])
+    expect(weeks.map((w) => w.isDeload)).toEqual([true, false])
+  })
+})

@@ -204,7 +204,7 @@ export function buildDemoState(): AppState {
       date,
       proteinG: protein,
       meals: noise(i * 3) > 0.85 ? 2 : 3,
-      weightKg: 84 + i * 0.02 + noise(i * 5) * 0.4,
+      weightKg: Math.round((84 + i * 0.02 + noise(i * 5) * 0.4) * 10) / 10,
       energy: clamp5(3 + noise(i * 7) * 2),
       note: i === 38 ? 'Overwogen om even strenger te gaan eten.' : undefined,
     }

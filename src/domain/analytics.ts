@@ -56,14 +56,17 @@ export function sessionSetCount(session: SessionLog): number {
 }
 
 /** Wekelijks volume, oplopend gesorteerd op ISO-weekstart. */
-export function weeklyVolume(sessions: SessionLog[]): Array<{ week: string; volume: number; sets: number; sessions: number }> {
-  const buckets = new Map<string, { volume: number; sets: number; sessions: number }>()
+export function weeklyVolume(
+  sessions: SessionLog[],
+): Array<{ week: string; volume: number; sets: number; sessions: number; isDeload: boolean }> {
+  const buckets = new Map<string, { volume: number; sets: number; sessions: number; isDeload: boolean }>()
   for (const session of sessions) {
     const key = weekStart(session.date)
-    const bucket = buckets.get(key) ?? { volume: 0, sets: 0, sessions: 0 }
+    const bucket = buckets.get(key) ?? { volume: 0, sets: 0, sessions: 0, isDeload: false }
     bucket.volume += sessionVolume(session)
     bucket.sets += sessionSetCount(session)
     bucket.sessions += 1
+    bucket.isDeload = bucket.isDeload || session.isDeload
     buckets.set(key, bucket)
   }
   return [...buckets.entries()]
@@ -210,6 +213,20 @@ export function average(values: number[]): number | null {
 
 export function round1(value: number): number {
   return Math.round(value * 10) / 10
+}
+
+/**
+ * Voortschrijdend gemiddelde over de laatste `window` bekende waarden.
+ * Ontbrekende metingen tellen niet als nul mee; die zouden de trend omlaag
+ * trekken terwijl er alleen niet gewogen is.
+ */
+export function trailingAverage(values: Array<number | null>, window: number): Array<number | null> {
+  const result: Array<number | null> = []
+  for (let i = 0; i < values.length; i++) {
+    const slice = values.slice(Math.max(0, i - window + 1), i + 1).filter((v): v is number => v !== null)
+    result.push(slice.length === 0 ? null : slice.reduce((a, b) => a + b, 0) / slice.length)
+  }
+  return result
 }
 
 /** Voortschrijdend gemiddelde over `window` punten. */

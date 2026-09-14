@@ -1,0 +1,346 @@
+@import 'tailwindcss';
+
+/* Thema-omschakeling via een class op <html>, niet alleen via het OS. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ------------------------------------------------------------------ */
+/* Tokens                                                              */
+/* ------------------------------------------------------------------ */
+
+:root {
+  color-scheme: light;
+
+  /* Oppervlakken */
+  --surface-base: #f6f6f4;
+  --surface-1: #ffffff;
+  --surface-2: #fbfbfa;
+  --surface-3: #f1f1ee;
+  --border-subtle: #e6e5e1;
+  --border-strong: #d6d5cf;
+
+  /* Tekst */
+  --text-primary: #14151a;
+  --text-secondary: #52535c;
+  --text-muted: #8a8b93;
+
+  /* Merk */
+  --brand-1: #5b4fd6;
+  --brand-2: #2a78d6;
+  --brand-ink: #ffffff;
+  --brand-soft: #ece9fc;
+
+  /* Status: gereserveerd, nooit hergebruikt als serie-kleur */
+  --status-good: #12855c;
+  --status-good-soft: #e0f5ec;
+  --status-warn: #a86f00;
+  --status-warn-soft: #fbf0d8;
+  --status-serious: #c23a39;
+  --status-serious-soft: #fbe6e6;
+  --status-neutral: #6b6c75;
+  --status-neutral-soft: #eeeeec;
+
+  /* Grafiekseries (gevalideerd, lichte modus) */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --grid: #e8e8e4;
+  --axis: #9a9a94;
+
+  --shadow-card: 0 1px 2px rgb(20 21 26 / 0.04), 0 8px 24px -12px rgb(20 21 26 / 0.12);
+  --shadow-lift: 0 2px 4px rgb(20 21 26 / 0.06), 0 20px 48px -20px rgb(20 21 26 / 0.24);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --surface-base: #0d0f14;
+  --surface-1: #14161c;
+  --surface-2: #191c23;
+  --surface-3: #20242d;
+  --border-subtle: #262a34;
+  --border-strong: #343946;
+
+  --text-primary: #f4f5f7;
+  --text-secondary: #a8abb6;
+  --text-muted: #767a86;
+
+  --brand-1: #8b7ef0;
+  --brand-2: #3987e5;
+  --brand-ink: #0d0f14;
+  --brand-soft: #1e1f3a;
+
+  --status-good: #3ac48d;
+  --status-good-soft: #10291f;
+  --status-warn: #e0a72c;
+  --status-warn-soft: #2b2211;
+  --status-serious: #f07070;
+  --status-serious-soft: #2e1617;
+  --status-neutral: #8b8f9b;
+  --status-neutral-soft: #1d2027;
+
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --grid: #232730;
+  --axis: #5c6068;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px -16px rgb(0 0 0 / 0.7);
+  --shadow-lift: 0 2px 6px rgb(0 0 0 / 0.5), 0 24px 60px -24px rgb(0 0 0 / 0.85);
+}
+
+@theme inline {
+  --color-base: var(--surface-base);
+  --color-surface: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--border-subtle);
+  --color-line-strong: var(--border-strong);
+  --color-ink: var(--text-primary);
+  --color-ink-2: var(--text-secondary);
+  --color-ink-3: var(--text-muted);
+  --color-brand: var(--brand-1);
+  --color-brand-2: var(--brand-2);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+  --color-good: var(--status-good);
+  --color-good-soft: var(--status-good-soft);
+  --color-warn: var(--status-warn);
+  --color-warn-soft: var(--status-warn-soft);
+  --color-serious: var(--status-serious);
+  --color-serious-soft: var(--status-serious-soft);
+  --color-neutral: var(--status-neutral);
+  --color-neutral-soft: var(--status-neutral-soft);
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
+  --color-series-3: var(--series-3);
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+
+  --radius-card: 18px;
+  --radius-tile: 14px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Basis                                                               */
+/* ------------------------------------------------------------------ */
+
+* {
+  border-color: var(--border-subtle);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Sfeerlicht achter de app: subtiel, en onzichtbaar voor de muis. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(60rem 40rem at 12% -10%, color-mix(in oklab, var(--brand-1) 16%, transparent), transparent 62%),
+    radial-gradient(50rem 34rem at 92% 4%, color-mix(in oklab, var(--brand-2) 12%, transparent), transparent 60%);
+  opacity: 0.7;
+}
+
+.dark body::before {
+  opacity: 0.55;
+}
+
+h1, h2, h3, h4 {
+  letter-spacing: -0.018em;
+  font-weight: 650;
+  margin: 0;
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-feature-settings: 'tnum' 1;
+  letter-spacing: -0.02em;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--brand-1) 30%, transparent);
+}
+
+/* Focus is zichtbaar, altijd. */
+:focus-visible {
+  outline: 2px solid var(--brand-2);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Scrollbars die niet schreeuwen */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+/* ------------------------------------------------------------------ */
+/* Herbruikbare bouwstenen                                             */
+/* ------------------------------------------------------------------ */
+
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.card-quiet {
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-tile);
+}
+
+.brand-gradient {
+  background-image: linear-gradient(135deg, var(--brand-1), var(--brand-2));
+}
+
+.brand-text {
+  background-image: linear-gradient(120deg, var(--brand-1), var(--brand-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hairline {
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* Invoervelden */
+.input {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 0.6rem 0.8rem;
+  color: var(--text-primary);
+  font: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.input::placeholder {
+  color: var(--text-muted);
+}
+.input:hover {
+  border-color: var(--border-strong);
+}
+.input:focus {
+  outline: none;
+  border-color: var(--brand-2);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand-2) 22%, transparent);
+}
+textarea.input {
+  resize: vertical;
+  min-height: 4.5rem;
+}
+select.input {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 52%, calc(100% - 13px) 52%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 2.2rem;
+}
+
+/* Bereikschuif voor pijn-, slaap- en energieschalen */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 26px;
+  background: transparent;
+  cursor: pointer;
+}
+input[type='range']::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-3);
+}
+input[type='range']::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-3);
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -7px;
+  border-radius: 999px;
+  background: var(--surface-1);
+  border: 2px solid var(--brand-2);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.12s ease;
+}
+input[type='range']::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--surface-1);
+  border: 2px solid var(--brand-2);
+}
+input[type='range']:active::-webkit-slider-thumb {
+  transform: scale(1.12);
+}
+
+/* Animaties */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--status-serious) 45%, transparent); }
+  70% { box-shadow: 0 0 0 12px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.pulse-alert {
+  animation: pulse-ring 2.4s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Recharts-tooltips volgen het thema in plaats van hun eigen wit. */
+.recharts-default-tooltip {
+  background: var(--surface-1) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: 12px !important;
+  box-shadow: var(--shadow-lift) !important;
+}
+.recharts-surface:focus {
+  outline: none;
+}
