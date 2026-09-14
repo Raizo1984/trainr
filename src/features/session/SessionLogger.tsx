@@ -49,6 +49,7 @@ import { feedbackForSet, verdictTone } from '@/domain/setFeedback'
 import { parseSpokenSet } from '@/domain/speech'
 import { useSpeech } from '@/ui/useSpeech'
 import { ComplaintCard } from './ComplaintCard'
+import { ExerciseImage } from './ExerciseImage'
 
 type Draft = Record<string, SetEntry[]>
 
@@ -401,6 +402,8 @@ function ExerciseCard({
                     <p className="mt-1.5 italic">{prescription.note}</p>
                   )}
                 </div>
+
+                <ExerciseImage stepId={prescription.stepId} />
               </div>
 
               {sets.map((set, i) => (

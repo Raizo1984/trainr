@@ -34,6 +34,7 @@ npm run e2e:offline  # start de app opnieuw met het netwerk uit
 npm run e2e:speech   # spreekt een set in via een nepherkenner
 npm run e2e:complaint # meldt een klacht en controleert het voorstel
 npm run e2e:report   # weekrapport, inclusief een verzonnen getal
+npm run e2e:wger     # het ophaalscript tegen een nep-wger
 ```
 
 De tests met een eigen server (`e2e:coach`, `e2e:complaint`, `e2e:report`)
@@ -43,6 +44,34 @@ dezelfde poort.
 `e2e:coach` start een nepserver die zich voordoet als OpenAI en controleert het
 verzoek dat de backend verstuurt. Typecontrole ziet niet of een veldnaam klopt
 met wat de API verwacht; deze controle wel, en hij kost geen tokens.
+
+## Beeld bij een oefening
+
+De afbeeldingen komen uit [wger](https://github.com/wger-project/wger), een
+vrije oefeningendatabank. `npm run wger` zoekt per trede een oefening, haalt het
+hoofdbeeld op en zet het in `public/exercises/`.
+
+Twee dingen bepalen hoe dit werkt.
+
+**Licentie.** wger staat onder CC-BY-SA, maar hun documentatie zegt dat losse
+oefeningen een eigen licentie kunnen hebben. Elk beeld draagt daarom zijn
+licentie en maker mee, en zonder die twee komt het er niet in. De
+bronvermelding staat zichtbaar onder het beeld, want bij CC-BY-SA is dat een
+voorwaarde en geen nette geste.
+
+**Koppeling.** Een zoekopdracht op naam levert bij "Box squat (hoge box)" vroeg
+of laat een plaatje van iets anders, en een verkeerd beeld leert iemand een
+beweging aan die hij niet moest doen. Daarom komt alles binnen als
+`bevestigd: false`, en toont de app onbevestigd beeld niet. Kijk na met
+`npm run wger -- --lijst` en zet `bevestigd` met de hand op `true` voor wat
+klopt. Zo kan een verkeerde koppeling nooit stil in beeld komen.
+
+Het beeld laadt pas wanneer je de oefening opent, want honderd afbeeldingen
+vooraf ophalen maakt precies de winst ongedaan die het eerste scherm licht
+houdt.
+
+`npm run e2e:wger` test het ophaalscript tegen een nepversie van wger: geen
+netwerk nodig, en niet afhankelijk van wat er vandaag in die databank staat.
 
 ## Het weekrapport
 
