@@ -52,5 +52,8 @@
     "zustand": "^5.0.15"
   },
   "private": true,
-  "type": "module"
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  }
 }
