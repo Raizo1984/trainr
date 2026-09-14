@@ -146,7 +146,23 @@ function errorMessage(error: unknown): string {
 
 // De gebouwde app. In ontwikkeling draait Vite hier zelf voor.
 const dist = path.resolve(here, '..', 'dist')
-app.use(express.static(dist))
+
+/*
+ * De service worker mag nooit uit een cache komen. Hij bepaalt zelf welke
+ * versie van de app een gebruiker ziet, dus een oude kopie zet iedereen vast
+ * op de vorige versie, ook na een nieuwe publicatie. De bestanden in assets/
+ * mogen juist wel lang blijven staan: die hebben een hash in hun naam en
+ * veranderen dus nooit van inhoud.
+ */
+app.use(
+  express.static(dist, {
+    setHeaders(res, filePath) {
+      if (filePath.endsWith('sw.js')) res.setHeader('Cache-Control', 'no-cache')
+      else if (filePath.includes(`${path.sep}assets${path.sep}`))
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+    },
+  }),
+)
 app.get(/.*/, (_req, res) => res.sendFile(path.join(dist, 'index.html')))
 
 app.listen(PORT, '0.0.0.0', () => {

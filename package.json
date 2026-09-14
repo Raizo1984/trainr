@@ -4,7 +4,7 @@
   "description": "Evidence-based personalized fitness coach — intake, fasering, The Rule, veiligheid, voeding en coaching.",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b --noEmit && tsc --noEmit -p server/tsconfig.json && vite build",
+    "build": "tsc -b --noEmit && tsc --noEmit -p server/tsconfig.json && vite build && node scripts/sw.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc -b --noEmit",
@@ -15,7 +15,9 @@
     "start": "tsx server/index.ts",
     "typecheck:server": "tsc --noEmit -p server/tsconfig.json",
     "e2e:coach": "node e2e/coach-integration.mjs",
-    "size": "node scripts/size-budget.mjs"
+    "size": "node scripts/size-budget.mjs",
+    "icons": "node scripts/icons.mjs",
+    "e2e:offline": "node e2e/offline.mjs"
   },
   "repository": {
     "type": "git",

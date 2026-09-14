@@ -30,11 +30,41 @@ npm run e2e          # intake, rode vlaggen, sessie loggen, navigatie
 npm run e2e:mobile   # elk scherm op 390 pixels: overflow en raakvlakken
 npm run e2e:coach    # controleert wat er werkelijk naar OpenAI gaat, zonder sleutel
 npm run size         # bewaakt wat het eerste scherm over de lijn haalt
+npm run e2e:offline  # start de app opnieuw met het netwerk uit
 ```
 
 `e2e:coach` start een nepserver die zich voordoet als OpenAI en controleert het
 verzoek dat de backend verstuurt. Typecontrole ziet niet of een veldnaam klopt
 met wat de API verwacht; deze controle wel, en hij kost geen tokens.
+
+## Zonder bereik
+
+De app draait zonder netwerk en kan op het beginscherm van een telefoon. Je
+data stond altijd al lokaal; wat ontbrak was de app zelf, en die staat nu in
+een cache van de browser.
+
+`scripts/sw.mjs` schrijft de service worker na elke build. Die lijst met
+bestanden kan niet met de hand bijgehouden worden, want vite zet een hash in
+elke bestandsnaam. Vergeet je zo'n lijst, dan werkt de app offline half, en dat
+merk je pas in de sportschool. `npm run e2e:offline` haalt het netwerk er
+daadwerkelijk uit en controleert of de app dan nog start, inclusief een scherm
+dat pas bij gebruik geladen wordt.
+
+Drie keuzes die erin zitten:
+
+- Antwoorden van de coach komen nooit uit de cache. Een oud antwoord op een
+  nieuwe vraag is erger dan geen antwoord.
+- Een nieuwe versie neemt het pas over als de app helemaal gesloten is. Zou hij
+  midden in een sessie wisselen, dan verdwijnen de brokken van de oude versie
+  terwijl die pagina ze nog nodig heeft.
+- De lettertypen komen van Google en worden niet meegekopieerd. Zonder bereik
+  valt de app terug op het systeemlettertype. Dat scheelt honderden kilobytes
+  en ziet er op iOS en Android gewoon goed uit.
+
+De iconen maak je opnieuw met `npm run icons`. Dat gebruikt de browser om SVG
+naar PNG te zetten, zodat het project daar geen apart gereedschap voor nodig
+heeft. De uitkomst staat in `public/` en gaat mee in de repo, dus een gewone
+build heeft geen browser nodig.
 
 ## Laadtijd op een slechte verbinding
 
