@@ -1,3 +1,4 @@
+run = "npm run build && npm start"
 modules = ["nodejs-20", "web"]
 
 [nix]
@@ -5,3 +6,11 @@ channel = "stable-25_05"
 
 [agent]
 expertMode = true
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 5001
+externalPort = 3000
