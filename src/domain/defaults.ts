@@ -71,6 +71,7 @@ export function emptyState(): AppState {
     phase: emptyPhaseState(),
     sessions: [],
     measurements: [],
+    movementAssessments: [],
     nutritionDays: [],
     acknowledgedAlerts: [],
     medicalHold: null,

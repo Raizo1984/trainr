@@ -10,7 +10,7 @@ en proactieve coaching.
 ```bash
 npm install
 npm run dev      # ontwikkelserver
-npm test         # 99 tests op de beslisregels
+npm test         # 109 tests op de beslisregels
 npm run build    # typecheck + productiebundel
 ```
 
@@ -42,6 +42,7 @@ signalering zichtbaar wordt.
 | Skills | `src/domain/skills.ts` | Droomdoelen als route met toelatingseisen (secties 2.1, 3.2) |
 | Gates | `src/domain/gates.ts` | Criteria-gedreven faseovergang (secties 3.3, 6.4) |
 | Blokevaluatie | `src/domain/blockReview.ts` | Beslisboom in de deloadweek (sectie 6.3) |
+| Bewegingskwaliteit | `src/domain/movement.ts` | Nulmeting van de bewegingspatronen (secties 6.1, 7.2) |
 | Coaching | `src/domain/coaching.ts` | Wekelijkse check-in en maandrapport (secties 6.2, 7.1) |
 
 De domeinlaag is puur en kent geen React, storage of netwerk. Dat is bewust: de
@@ -124,6 +125,9 @@ videoanalyse van techniek (sectie 7.2), wearable- en voedingsapp-koppelingen
 zijn wel geïmplementeerd, maar bereiken de gebruiker in de app in plaats van via
 push of SMS.
 
-Ook nog open: de bewegingskwaliteit-nulmeting uit sectie 6.1 (squatdiepte,
-heupscharnier, scapulacontrole) en het zelfbeoordelingsformulier voor techniek dat
-sectie 7.2 zonder video-AI zou kunnen vervangen.
+Sectie 7.2 beschrijft een AI die video analyseert op gewrichtsposities en tempo.
+Die zit er niet in, en de app doet ook niet alsof. Wat er wel in zit is het
+bruikbare deel: zes bewegingspatronen met de checklist die een coach ook zou
+nalopen, dezelfde groen-geel-rood uitkomst en een concrete correctie per punt.
+Het resultaat vult het gate-criterium bewegingsruimte, dat daarvoor een vinkje
+was.

@@ -15,6 +15,7 @@ import type {
   SessionLog,
 } from './types'
 import { adherence, average, formTrend, peakPain, round1 } from './analytics'
+import { summarise } from './movement'
 import { heaviestLoad, workingSets } from './rule'
 
 function status(order: GateStatus[]): GateStatus {
@@ -185,6 +186,39 @@ function confirmationCriterion(
   }
 }
 
+/**
+ * Bewegingsruimte. Zodra er een bewegingskwaliteit-beoordeling ligt, leidt de
+ * app dit af uit die data in plaats van uit een vinkje. Zonder beoordeling
+ * valt het terug op de handmatige bevestiging.
+ */
+function movementCriterion(state: AppState, requirement: string): GateCriterionResult {
+  const latest = state.movementAssessments[state.movementAssessments.length - 1] ?? null
+  const summary = summarise(latest)
+
+  if (summary.gradedItems === 0) {
+    return confirmationCriterion(
+      'bewegingsruimte',
+      'Bewegingsruimte',
+      requirement,
+      state.phase.confirmations.bewegingsruimte,
+      'Er ligt nog geen bewegingsbeoordeling. Leg die vast bij Metingen, dan vult dit criterium zichzelf.',
+    )
+  }
+
+  const status: GateStatus = summary.worst === 'rood' ? 'rood' : summary.worst === 'geel' ? 'geel' : 'groen'
+  return {
+    id: 'bewegingsruimte',
+    label: 'Bewegingsruimte',
+    requirement,
+    status,
+    value: `${summary.completed} van ${summary.total} patronen beoordeeld, slechtste ${summary.worst}`,
+    explanation:
+      status === 'groen'
+        ? 'De patronen die de volgende fase vraagt zijn uitvoerbaar binnen een pijnvrij bereik.'
+        : summary.limits[0] ?? 'Eén of meer patronen vragen aandacht voordat de belasting omhoog kan.',
+  }
+}
+
 export function evaluateGate(state: AppState, phase: PhaseDefinition, weeksInPhase: number): GateEvaluation {
   const sessions = state.sessions.filter((s) => s.phase === phase.id)
   const criteria: GateCriterionResult[] = phase.gateCriteria.map((def) => {
@@ -200,13 +234,7 @@ export function evaluateGate(state: AppState, phase: PhaseDefinition, weeksInPha
       case 'prestatie':
         return performanceCriterion(sessions)
       case 'bewegingsruimte':
-        return confirmationCriterion(
-          'bewegingsruimte',
-          'Bewegingsruimte',
-          def.requirement,
-          state.phase.confirmations.bewegingsruimte,
-          'Bereik bepaalt welke oefeningen in de volgende fase überhaupt uitvoerbaar zijn.',
-        )
+        return movementCriterion(state, def.requirement)
       case 'voeding':
         return confirmationCriterion(
           'voeding',

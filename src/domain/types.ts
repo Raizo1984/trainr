@@ -528,6 +528,20 @@ export interface CoachAlert {
 }
 
 /* ------------------------------------------------------------------ */
+/* Bewegingskwaliteit (sectie 6.1)                                      */
+/* ------------------------------------------------------------------ */
+
+export type Grade = 'groen' | 'geel' | 'rood'
+
+export interface MovementAssessment {
+  id: string
+  date: IsoDate
+  /** Score per checkpunt, gesleuteld op `CheckItem.id`. */
+  grades: Record<string, Grade>
+  note?: string
+}
+
+/* ------------------------------------------------------------------ */
 /* Applicatiestatus                                                     */
 /* ------------------------------------------------------------------ */
 
@@ -546,6 +560,8 @@ export interface PhaseState {
 
 export interface AppState {
   intake: IntakeData
+  /** Bewegingskwaliteit-beoordelingen (sectie 6.1), nieuwste laatst. */
+  movementAssessments: MovementAssessment[]
   risk: RiskAssessment | null
   phase: PhaseState
   sessions: SessionLog[]

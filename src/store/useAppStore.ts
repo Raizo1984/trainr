@@ -14,6 +14,7 @@ import type {
   GateCriterionId,
   IntakeData,
   Measurement,
+  MovementAssessment,
   NutritionDay,
   PhaseId,
   SessionLog,
@@ -29,6 +30,7 @@ export interface AppStore extends AppState {
   logSession: (session: SessionLog) => void
   addFollowUp: (sessionId: string, followUp: FollowUp24h) => void
   addMeasurement: (measurement: Measurement) => void
+  saveMovementAssessment: (assessment: MovementAssessment) => void
   removeMeasurement: (id: string) => void
   addNutritionDay: (day: NutritionDay) => void
   confirmGate: (criterion: GateCriterionId, value: boolean) => void
@@ -89,6 +91,14 @@ export const useAppStore = create<AppStore>()(
           ),
         })),
 
+      saveMovementAssessment: (assessment) =>
+        set((state) => ({
+          movementAssessments: [
+            ...state.movementAssessments.filter((a) => a.id !== assessment.id),
+            assessment,
+          ].sort((a, b) => a.date.localeCompare(b.date)),
+        })),
+
       removeMeasurement: (id) =>
         set((state) => ({ measurements: state.measurements.filter((m) => m.id !== id) })),
 
@@ -138,9 +148,9 @@ export const useAppStore = create<AppStore>()(
       resetAll: () => set(emptyState()),
 
       exportJson: () => {
-        const { intake, risk, phase, sessions, measurements, nutritionDays, medicalHold } = get()
+        const { intake, risk, phase, sessions, measurements, movementAssessments, nutritionDays, medicalHold } = get()
         return JSON.stringify(
-          { exportedAt: new Date().toISOString(), intake, risk, phase, sessions, measurements, nutritionDays, medicalHold },
+          { exportedAt: new Date().toISOString(), intake, risk, phase, sessions, measurements, movementAssessments, nutritionDays, medicalHold },
           null,
           2,
         )
@@ -155,6 +165,7 @@ export const useAppStore = create<AppStore>()(
         phase: state.phase,
         sessions: state.sessions,
         measurements: state.measurements,
+        movementAssessments: state.movementAssessments,
         nutritionDays: state.nutritionDays,
         acknowledgedAlerts: state.acknowledgedAlerts,
         medicalHold: state.medicalHold,
