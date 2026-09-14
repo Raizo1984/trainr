@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "IMrmKfRqMM-0YLh_ioUwX"
+uri = "file://attached_assets/generated_videos/trainr-project-promo.mp4"
+type = "video"
+title = "Trainr animated project promo"
+description = "An 8-second 16:9 motion-graphics introduction to Trainr, rendered at 1280×720 in H.264 MP4 format."
+logical_id = "79a836e9-a020-4140-a793-a568cef3c974"
+content_hash = "sha256:7e2f4919bd5b5164e15e00aa19e1ae2b01d0ae10c03b941c302d2f2a4a873188"
+size = 1945441
+mtime_ms = 1789423450217
+storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:b011547e-ce54-43a8-ba78-795bb4a706ac/79a836e9-a020-4140-a793-a568cef3c974/96a2fa40-ea04-428a-b947-36c9bae09eaf"
+storage_version_token = "1789423468467236"
+content_type = "video/mp4"
