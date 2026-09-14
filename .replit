@@ -1,6 +1,14 @@
 run = "npm run build && npm start"
 modules = ["nodejs-20", "web"]
 
+# Publiceren. Zonder deze sectie vindt Replit geen startopdracht en weigert
+# het publiceren, ook al staat `run` hierboven wel: dat geldt alleen voor de
+# Run-knop in de editor. De build draait eenmalig, daarna start de server.
+[deployment]
+deploymentTarget = "autoscale"
+build = ["npm", "run", "build"]
+run = ["npm", "start"]
+
 [nix]
 channel = "stable-25_05"
 
