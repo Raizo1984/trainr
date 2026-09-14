@@ -287,7 +287,7 @@ function toAdjustment(raw: RawProposal): PlanAdjustment {
   }
 }
 
-function CoachProposal({
+export function CoachProposal({
   proposal,
   check,
   onAccept,
@@ -305,6 +305,14 @@ function CoachProposal({
         <Badge tone="brand">Voorstel</Badge>
         <span className="text-[13px] font-semibold">{describeAdjustment(shown)}</span>
       </div>
+
+      {/*
+        De onderbouwing hoort bij de knop waarmee je akkoord geeft, niet alleen
+        in de tekst eromheen. Elders in de app staat hij er wel; hier ontbrak
+        hij, waardoor je bij een voorstel uit een klachtmelding je eigen woorden
+        niet terugzag.
+      */}
+      <p className="mt-1 text-[12.5px] leading-relaxed text-ink-2">{shown.reason}</p>
 
       {check.altered && (
         <p className="mt-1.5 text-[12.5px] leading-relaxed" style={{ color: 'var(--status-warn)' }}>

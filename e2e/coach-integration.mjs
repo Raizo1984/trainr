@@ -146,6 +146,77 @@ try {
   ok(empty.status === 400, 'een leeg gesprek wordt geweigerd')
   const long = await ask(Array.from({ length: 41 }, () => ({ role: 'user', content: 'x' })))
   ok(long.status === 400, 'een te lang gesprek wordt geweigerd')
+
+  /* ---- Klacht duiden -------------------------------------------- */
+
+  const LADDERS = [
+    { id: 'squat', name: 'Squat / kniepatroon', pattern: 'squat' },
+    { id: 'horizontale-push', name: 'Horizontaal duwen', pattern: 'horizontale-push' },
+  ]
+
+  async function meld(text, ladders = LADDERS) {
+    const response = await fetch(`http://localhost:${APP_PORT}/api/klacht`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, ladders }),
+    })
+    return { status: response.status, body: await response.json() }
+  }
+
+  function duiding(args) {
+    return {
+      ...reply,
+      choices: [
+        {
+          index: 0,
+          message: {
+            role: 'assistant',
+            content: null,
+            tool_calls: [
+              { id: 'call_k', type: 'function', function: { name: 'duid_klacht', arguments: JSON.stringify(args) } },
+            ],
+          },
+          finish_reason: 'stop',
+          logprobs: null,
+        },
+      ],
+    }
+  }
+
+  reply = duiding({
+    region: 'knie-rechts',
+    ladderIds: ['squat'],
+    painLevel: 4,
+    summary: 'Zeurende knie rechts vanaf de zesde rep.',
+  })
+  const klacht = await meld('mijn rechterknie voelt raar vanaf rep 6 bij squats')
+  ok(klacht.status === 200, 'een klacht levert 200 op')
+  ok(klacht.body.region === 'knie-rechts', 'het gebied komt door')
+  ok(Array.isArray(klacht.body.ladderIds) && klacht.body.ladderIds[0] === 'squat', 'de betrokken oefening komt door')
+  ok(klacht.body.painLevel === 4, 'het pijncijfer komt door')
+
+  const verzoek = lastRequest?.body
+  ok(verzoek?.tool_choice?.function?.name === 'duid_klacht', 'dwingt het gereedschap af in plaats van een gesprek')
+  ok(verzoek?.tools?.length === 1, 'biedt alleen het gereedschap voor duiden aan')
+  ok(/geen diagnose|Geen diagnose/.test(verzoek?.messages?.[0]?.content ?? ''), 'de instructie verbiedt een diagnose')
+  ok(/OEFENINGEN VAN DEZE SESSIE/.test(verzoek?.messages?.[1]?.content ?? ''), 'stuurt de oefeningen als aparte systeemboodschap')
+
+  reply = duiding({ region: 'knie-rechts', ladderIds: ['deadlift-verzonnen'], summary: 'x' })
+  const verzonnen = await meld('mijn knie doet pijn')
+  ok(verzonnen.status === 502, 'een verzonnen oefening bereikt de client niet')
+
+  reply = duiding({ region: 'linkerteen', ladderIds: [], summary: 'x' })
+  const gebied = await meld('mijn teen doet pijn')
+  ok(gebied.status === 502, 'een verzonnen lichaamsgebied bereikt de client niet')
+
+  reply = duiding({ region: 'knie-rechts', ladderIds: ['squat'], painLevel: 44, summary: 'x' })
+  const cijfer = await meld('mijn knie doet pijn')
+  ok(cijfer.status === 502, 'een pijncijfer buiten 0 tot 10 wordt geweigerd')
+
+  const leeg = await meld('')
+  ok(leeg.status === 400, 'een lege klacht wordt geweigerd')
+  const zonder = await meld('mijn knie doet pijn', [])
+  ok(zonder.status === 400, 'een klacht zonder oefeningen wordt geweigerd')
 } finally {
   server.kill()
   stub.close()

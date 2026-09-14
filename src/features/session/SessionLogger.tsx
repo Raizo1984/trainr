@@ -48,6 +48,7 @@ import type { BodyRegion, ExerciseLog, LadderStep, Pain, Scale5, SessionLog, Set
 import { feedbackForSet, verdictTone } from '@/domain/setFeedback'
 import { parseSpokenSet } from '@/domain/speech'
 import { useSpeech } from '@/ui/useSpeech'
+import { ComplaintCard } from './ComplaintCard'
 
 type Draft = Record<string, SetEntry[]>
 
@@ -275,6 +276,8 @@ function LogPanel() {
           onChange={(sets) => setDraft((d) => ({ ...d, [prescription.ladderId]: sets }))}
         />
       ))}
+
+      <ComplaintCard prescriptions={prescriptions} />
     </div>
   )
 }

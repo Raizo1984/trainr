@@ -32,11 +32,33 @@ npm run e2e:coach    # controleert wat er werkelijk naar OpenAI gaat, zonder sle
 npm run size         # bewaakt wat het eerste scherm over de lijn haalt
 npm run e2e:offline  # start de app opnieuw met het netwerk uit
 npm run e2e:speech   # spreekt een set in via een nepherkenner
+npm run e2e:complaint # meldt een klacht en controleert het voorstel
 ```
 
 `e2e:coach` start een nepserver die zich voordoet als OpenAI en controleert het
 verzoek dat de backend verstuurt. Typecontrole ziet niet of een veldnaam klopt
 met wat de API verwacht; deze controle wel, en hij kost geen tokens.
+
+## Een klacht in je eigen woorden
+
+Op het trainingsscherm kun je melden dat iets niet goed voelt, bijvoorbeeld
+"mijn rechterknie voelt raar vanaf rep 6 bij squats, pijn een 7".
+
+Het taalmodel doet daarbij één ding: het bepaalt welk lichaamsgebied je bedoelt
+en welke van je huidige oefeningen dat gebied belasten. Wat er met je programma
+gebeurt, rekent de app daarna zelf uit, met dezelfde drempels als De Regel. Het
+resultaat is een voorstel dat je nog moet accepteren.
+
+Die scheiding is de kern. Een taalmodel dat zelf mag besluiten hoeveel belasting
+eraf gaat, geeft bij dezelfde klacht op dinsdag een ander antwoord dan op
+donderdag. Voor een app die letsel moet helpen voorkomen is dat geen
+acceptabele eigenschap.
+
+Wat het model teruggeeft wordt nagelezen voordat het de app in gaat. Een
+verzonnen oefening, een gebied dat niet bestaat of een pijncijfer buiten 0 tot
+10 wordt geweigerd in plaats van gerepareerd. Zonder sleutel of zonder bereik
+blijft de gewone weg open: pijn invullen bij de set doet hetzelfde en werkt
+offline.
 
 ## Een set inspreken
 

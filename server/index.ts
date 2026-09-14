@@ -14,10 +14,12 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import express from 'express'
+import type { Response } from 'express'
 import OpenAI from 'openai'
 import { COACH_SYSTEM } from './prompt.ts'
 import { ADJUSTMENT_TOOL } from './tools.ts'
 import { parseCoachResponse } from './parse.ts'
+import { COMPLAINT_SYSTEM, COMPLAINT_TOOL, COMPLAINT_TOOL_NAME, parseComplaintArguments } from './complaint.ts'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -114,28 +116,127 @@ app.post('/api/coach', async (req, res) => {
       },
     })
   } catch (error) {
-    if (error instanceof OpenAI.AuthenticationError) {
-      res.status(502).json({ error: 'sleutel-ongeldig', message: 'De API-sleutel wordt geweigerd. Controleer OPENAI_API_KEY.' })
+    stuurFout(res, error)
+  }
+})
+
+/**
+ * Eén plek voor wat er misgaat bij OpenAI.
+ *
+ * Stond dit per eindpunt, dan krijgt de gebruiker bij het ene een bruikbare
+ * melding en bij het andere "er ging iets mis". Juist bij een ongeldige sleutel
+ * of een verkeerde modelnaam is de melding het enige aanknopingspunt.
+ */
+function stuurFout(res: Response, error: unknown): void {
+  if (error instanceof OpenAI.AuthenticationError) {
+    res.status(502).json({ error: 'sleutel-ongeldig', message: 'De API-sleutel wordt geweigerd. Controleer OPENAI_API_KEY.' })
+    return
+  }
+  if (error instanceof OpenAI.RateLimitError) {
+    res.status(429).json({ error: 'te-druk', message: 'Even te veel aanvragen, of je tegoed is op. Probeer het later opnieuw.' })
+    return
+  }
+  if (error instanceof OpenAI.NotFoundError) {
+    res.status(502).json({
+      error: 'model-onbekend',
+      message: `Het model "${MODEL}" bestaat niet of is niet beschikbaar voor dit account. Kijk op /api/coach/models welke namen wel werken en zet die in OPENAI_MODEL.`,
+    })
+    return
+  }
+  if (error instanceof OpenAI.APIError) {
+    console.error('OpenAI-fout', error.status, error.message)
+    res.status(502).json({ error: 'api-fout', message: 'De coach is nu niet bereikbaar. Je programma werkt gewoon door.' })
+    return
+  }
+  console.error(error)
+  res.status(500).json({ error: 'onbekend', message: 'Er ging iets mis aan onze kant.' })
+}
+
+/**
+ * Een klacht in eigen woorden duiden.
+ *
+ * Het model bepaalt alleen wélk lichaamsgebied het is en welke oefeningen dat
+ * belasten. Wat er met het programma gebeurt, rekent de app daarna zelf uit met
+ * de regels die er al staan. Zo blijft hetzelfde verhaal altijd hetzelfde
+ * gevolg hebben, ook als het model morgen anders formuleert.
+ */
+app.post('/api/klacht', async (req, res) => {
+  if (!process.env.OPENAI_API_KEY) {
+    res.status(503).json({
+      error: 'geen-sleutel',
+      message:
+        'Klachten duiden werkt alleen met een sleutel. Zet OPENAI_API_KEY in de omgeving van de server. Je kunt de klacht ook met de hand invullen bij de set.',
+    })
+    return
+  }
+
+  const { text, ladders } = req.body as {
+    text?: string
+    ladders?: Array<{ id?: string; name?: string; pattern?: string }>
+  }
+
+  if (typeof text !== 'string' || text.trim().length < 3) {
+    res.status(400).json({ error: 'geen-tekst', message: 'Er is geen klacht meegestuurd.' })
+    return
+  }
+  if (text.length > 1000) {
+    res.status(400).json({ error: 'te-lang', message: 'Houd de klacht korter.' })
+    return
+  }
+  if (!Array.isArray(ladders) || ladders.length === 0) {
+    res.status(400).json({ error: 'geen-oefeningen', message: 'Er zijn geen oefeningen meegestuurd.' })
+    return
+  }
+
+  const toegestaan = ladders.map((l) => l?.id).filter((id): id is string => typeof id === 'string')
+  if (toegestaan.length === 0) {
+    res.status(400).json({ error: 'geen-oefeningen', message: 'De meegestuurde oefeningen hebben geen id.' })
+    return
+  }
+
+  const client = new OpenAI()
+
+  try {
+    const completion = await client.chat.completions.create({
+      model: MODEL,
+      max_completion_tokens: 400,
+      messages: [
+        { role: 'system', content: COMPLAINT_SYSTEM },
+        {
+          role: 'system',
+          content: `OEFENINGEN VAN DEZE SESSIE\n${JSON.stringify(ladders, null, 1)}`,
+        },
+        { role: 'user', content: text },
+      ],
+      tools: [COMPLAINT_TOOL],
+      // Afdwingen: hier is een gesprek geen bruikbaar antwoord.
+      tool_choice: { type: 'function', function: { name: COMPLAINT_TOOL_NAME } },
+    })
+
+    const call = completion.choices[0]?.message?.tool_calls?.find(
+      (c) => 'function' in c && c.function.name === COMPLAINT_TOOL_NAME,
+    )
+    if (!call || !('function' in call)) {
+      res.status(502).json({ error: 'niet-geduid', message: 'De klacht kon niet geduid worden. Vul hem met de hand in bij de set.' })
       return
     }
-    if (error instanceof OpenAI.RateLimitError) {
-      res.status(429).json({ error: 'te-druk', message: 'Even te veel aanvragen, of je tegoed is op. Probeer het later opnieuw.' })
+
+    const gelezen = parseComplaintArguments(call.function.arguments, toegestaan)
+    if (!gelezen.ok) {
+      console.warn('Klacht geweigerd:', gelezen.fout)
+      res.status(502).json({ error: 'niet-geduid', message: 'De klacht kon niet geduid worden. Vul hem met de hand in bij de set.' })
       return
     }
-    if (error instanceof OpenAI.NotFoundError) {
-      res.status(502).json({
-        error: 'model-onbekend',
-        message: `Het model "${MODEL}" bestaat niet of is niet beschikbaar voor dit account. Kijk op /api/coach/models welke namen wel werken en zet die in OPENAI_MODEL.`,
-      })
-      return
-    }
-    if (error instanceof OpenAI.APIError) {
-      console.error('OpenAI-fout', error.status, error.message)
-      res.status(502).json({ error: 'api-fout', message: 'De coach is nu niet bereikbaar. Je programma werkt gewoon door.' })
-      return
-    }
-    console.error(error)
-    res.status(500).json({ error: 'onbekend', message: 'Er ging iets mis aan onze kant.' })
+
+    res.json({
+      ...gelezen.waarde,
+      usage: {
+        input: completion.usage?.prompt_tokens ?? 0,
+        output: completion.usage?.completion_tokens ?? 0,
+      },
+    })
+  } catch (error) {
+    stuurFout(res, error)
   }
 })
 

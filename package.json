@@ -18,7 +18,8 @@
     "size": "node scripts/size-budget.mjs",
     "icons": "node scripts/icons.mjs",
     "e2e:offline": "node e2e/offline.mjs",
-    "e2e:speech": "node e2e/speech.mjs"
+    "e2e:speech": "node e2e/speech.mjs",
+    "e2e:complaint": "node e2e/complaint.mjs"
   },
   "repository": {
     "type": "git",
