@@ -29,11 +29,34 @@ npm run build && npm run preview &
 npm run e2e          # intake, rode vlaggen, sessie loggen, navigatie
 npm run e2e:mobile   # elk scherm op 390 pixels: overflow en raakvlakken
 npm run e2e:coach    # controleert wat er werkelijk naar OpenAI gaat, zonder sleutel
+npm run size         # bewaakt wat het eerste scherm over de lijn haalt
 ```
 
 `e2e:coach` start een nepserver die zich voordoet als OpenAI en controleert het
 verzoek dat de backend verstuurt. Typecontrole ziet niet of een veldnaam klopt
 met wat de API verwacht; deze controle wel, en hij kost geen tokens.
+
+## Laadtijd op een slechte verbinding
+
+De app wordt in een sportschool gebruikt, waar het bereik vaak slecht is. Wat
+het eerste scherm nodig heeft, is daarom gescheiden van de rest:
+
+| | gecomprimeerd |
+| --- | --- |
+| eerste scherm | 162 kB |
+| de zes andere schermen samen | 25 kB, voorgeladen zodra het eerste scherm staat |
+| grafieken | 109 kB, pas wanneer je er een in beeld scrolt |
+
+Voor het splitsen was dat 293 kB voor het eerste scherm, met de grafieken erin.
+De grafieken zijn met afstand het zwaarste onderdeel en staan op geen enkel
+scherm bovenaan, dus die horen daar niet.
+
+Twee dingen houden dit overeind. `npm run size` faalt zodra het eerste scherm
+boven de grens komt, bijvoorbeeld doordat ergens een gewone import van `charts`
+terugsluipt. En schermen worden geladen via `lazyScreen` in plaats van kaal
+`React.lazy`: die onthoudt de module, zodat een tabwissel na het voorladen geen
+leeg skelet meer laat zien. Met `React.lazy` alleen gebeurde dat wel, ook als de
+code al binnen was.
 
 Bij de eerste start kun je de intake doorlopen of op **demodata laden** klikken:
 veertien weken fase 1 van een gebruiker met knieklachten en een verhoogd

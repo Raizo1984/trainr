@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useState, useTransition } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   Activity,
@@ -16,14 +16,69 @@ import { useAppStore } from '@/store/useAppStore'
 import { useAlerts } from '@/store/selectors'
 import { useTheme } from '@/ui/theme'
 import { cx } from '@/ui/primitives'
-import IntakeWizard from '@/features/intake/IntakeWizard'
+import { lazyScreen } from '@/ui/lazyScreen'
 import Dashboard from '@/features/dashboard/Dashboard'
-import SessionLogger from '@/features/session/SessionLogger'
-import PlanScreen from '@/features/plan/PlanScreen'
-import NutritionScreen from '@/features/nutrition/NutritionScreen'
-import MeasurementsScreen from '@/features/measurements/MeasurementsScreen'
-import CoachScreen from '@/features/coach/CoachScreen'
-import SettingsScreen from '@/features/settings/SettingsScreen'
+
+/**
+ * Alleen het dashboard laadt meteen mee; dat is het scherm dat een terugkerende
+ * gebruiker als eerste ziet. De rest komt pas binnen als je het tabblad opent.
+ * Dat scheelt bij het opstarten de code van zes schermen die je op dat moment
+ * niet bekijkt, wat telt op een telefoon met slecht bereik.
+ */
+const IntakeWizard = lazyScreen(() => import('@/features/intake/IntakeWizard'))
+const SessionLogger = lazyScreen(() => import('@/features/session/SessionLogger'))
+const PlanScreen = lazyScreen(() => import('@/features/plan/PlanScreen'))
+const NutritionScreen = lazyScreen(() => import('@/features/nutrition/NutritionScreen'))
+const MeasurementsScreen = lazyScreen(() => import('@/features/measurements/MeasurementsScreen'))
+const CoachScreen = lazyScreen(() => import('@/features/coach/CoachScreen'))
+const SettingsScreen = lazyScreen(() => import('@/features/settings/SettingsScreen'))
+
+/**
+ * Haalt de overige schermen op zodra de app stil ligt.
+ *
+ * Lui laden houdt het eerste scherm licht, maar zou elke tabwissel een
+ * wachtmoment geven. Door de rest op te halen wanneer er toch niets gebeurt,
+ * is het eerste scherm snel én voelt navigeren daarna direct. De browser
+ * behandelt dit als werk met lage prioriteit, dus het vertraagt het eerste
+ * scherm niet.
+ */
+function usePrefetchScreens(active: boolean) {
+  useEffect(() => {
+    if (!active) return
+    let cancelled = false
+    const run = () => {
+      if (cancelled) return
+      for (const screen of [SessionLogger, PlanScreen, CoachScreen, NutritionScreen, MeasurementsScreen, SettingsScreen]) {
+        void screen.preload()
+      }
+    }
+    // Direct na de eerste weergave, niet pas wanneer de browser niets meer te
+    // doen heeft: requestIdleCallback duurde in de praktijk seconden en dan
+    // kijkt de gebruiker bij de eerste tabwissel alsnog naar een skelet. Een
+    // frame wachten houdt de eerste weergave vrij; samen zijn deze zes brokken
+    // ongeveer 31 kB gecomprimeerd, dus daarna is er ruimte zat.
+    const frame = requestAnimationFrame(run)
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(frame)
+    }
+  }, [active])
+}
+
+/** Plaatshouder tijdens het laden van een scherm. Rustig, geen springerige layout. */
+function ScreenFallback() {
+  return (
+    <div className="space-y-4" aria-label="Laden" role="status">
+      {[0, 1].map((i) => (
+        <div
+          key={i}
+          className="card animate-pulse"
+          style={{ height: i === 0 ? 180 : 260, background: 'var(--surface-2)' }}
+        />
+      ))}
+    </div>
+  )
+}
 
 export type Tab = 'vandaag' | 'trainen' | 'plan' | 'voeding' | 'metingen' | 'coach' | 'instellingen'
 
@@ -39,10 +94,27 @@ const TABS: Array<{ id: Tab; label: string; icon: typeof Activity }> = [
 
 export default function App() {
   const intakeDone = useAppStore((s) => Boolean(s.intake.completedAt))
-  const [tab, setTab] = useState<Tab>('vandaag')
+  const [tab, setTabNow] = useState<Tab>('vandaag')
+  const [, startTabChange] = useTransition()
   const { theme, toggle } = useTheme()
+  usePrefetchScreens(intakeDone)
 
-  if (!intakeDone) return <IntakeWizard theme={theme} onToggleTheme={toggle} />
+  // Als overgang, niet als gewone toestandswijziging. Het nieuwe scherm wordt
+  // apart ingeladen, en zonder overgang ruilt React het oude scherm meteen in
+  // voor een leeg skelet. Zo blijft het vorige scherm staan tot het volgende
+  // klaar is: bij een voorgeladen brok is dat onmerkbaar, en anders zie je
+  // liever nog even het oude scherm dan een lege pagina.
+  const setTab = useCallback((next: Tab) => {
+    startTabChange(() => setTabNow(next))
+  }, [])
+
+  if (!intakeDone) {
+    return (
+      <Suspense fallback={<div className="min-h-dvh" />}>
+        <IntakeWizard theme={theme} onToggleTheme={toggle} />
+      </Suspense>
+    )
+  }
 
   return (
     <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[1180px] gap-6 px-4 pb-24 pt-0 md:px-6 md:pb-8 md:pt-6">
@@ -58,13 +130,15 @@ export default function App() {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
           >
-            {tab === 'vandaag' && <Dashboard onNavigate={setTab} />}
-            {tab === 'trainen' && <SessionLogger />}
-            {tab === 'plan' && <PlanScreen />}
-            {tab === 'voeding' && <NutritionScreen />}
-            {tab === 'metingen' && <MeasurementsScreen />}
-            {tab === 'coach' && <CoachScreen />}
-            {tab === 'instellingen' && <SettingsScreen />}
+            <Suspense fallback={<ScreenFallback />}>
+              {tab === 'vandaag' && <Dashboard onNavigate={setTab} />}
+              {tab === 'trainen' && <SessionLogger />}
+              {tab === 'plan' && <PlanScreen />}
+              {tab === 'voeding' && <NutritionScreen />}
+              {tab === 'metingen' && <MeasurementsScreen />}
+              {tab === 'coach' && <CoachScreen />}
+              {tab === 'instellingen' && <SettingsScreen />}
+            </Suspense>
           </motion.div>
         </AnimatePresence>
       </main>

@@ -14,7 +14,8 @@
     "dev:all": "node scripts/dev.mjs",
     "start": "tsx server/index.ts",
     "typecheck:server": "tsc --noEmit -p server/tsconfig.json",
-    "e2e:coach": "node e2e/coach-integration.mjs"
+    "e2e:coach": "node e2e/coach-integration.mjs",
+    "size": "node scripts/size-budget.mjs"
   },
   "repository": {
     "type": "git",

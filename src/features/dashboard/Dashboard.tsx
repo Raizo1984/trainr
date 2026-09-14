@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import type { Tab } from '@/App'
 import { Badge, Button, Card, ProgressRing, SectionTitle, SourceNote } from '@/ui/primitives'
-import { PainChart, VolumeChart } from '@/ui/charts'
+import { PainChart, VolumeChart } from '@/ui/LazyChart'
 import { useAppStore } from '@/store/useAppStore'
 import {
   useAdherence,
