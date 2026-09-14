@@ -23,7 +23,8 @@ export interface RawProposal {
 export interface CoachReply {
   text: string
   proposals: RawProposal[]
-  refused: boolean
+  /** Het model stopte halverwege, bijvoorbeeld door een tokenlimiet. */
+  incomplete: boolean
 }
 
 export class CoachError extends Error {
@@ -35,11 +36,17 @@ export class CoachError extends Error {
   }
 }
 
-export async function coachStatus(): Promise<{ available: boolean; model: string }> {
+export interface CoachStatus {
+  available: boolean
+  /** Welk model de server gebruikt. Leeg als de coach niet is ingesteld. */
+  model: string
+}
+
+export async function coachStatus(): Promise<CoachStatus> {
   try {
     const response = await fetch('/api/coach/status')
     if (!response.ok) return { available: false, model: '' }
-    return (await response.json()) as { available: boolean; model: string }
+    return (await response.json()) as CoachStatus
   } catch {
     // Geen server bereikbaar: de app werkt door, de coach niet.
     return { available: false, model: '' }

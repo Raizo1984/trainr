@@ -42,10 +42,14 @@ export function CoachChat({ delay = 0 }: { delay?: number }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [available, setAvailable] = useState<boolean | null>(null)
+  const [model, setModel] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    coachStatus().then((s) => setAvailable(s.available))
+    coachStatus().then((s) => {
+      setAvailable(s.available)
+      setModel(s.model)
+    })
   }, [])
 
   useEffect(() => {
@@ -76,10 +80,17 @@ export function CoachChat({ delay = 0 }: { delay?: number }) {
         ...history,
         {
           role: 'assistant',
-          content: reply.text || 'Ik heb hier geen antwoord op kunnen formuleren.',
+          content:
+            reply.text ||
+            (reply.proposals.length > 0
+              ? 'Zie het voorstel hieronder.'
+              : 'Ik heb hier geen antwoord op kunnen formuleren.'),
           proposals: reply.proposals.map(toAdjustment),
         },
       ])
+      if (reply.incomplete) {
+        setError('Het antwoord is halverwege afgekapt. Stel je vraag korter, of vraag door.')
+      }
     } catch (e) {
       setError(e instanceof CoachError ? e.message : 'Er ging iets mis.')
       setTurns(history)
@@ -93,7 +104,7 @@ export function CoachChat({ delay = 0 }: { delay?: number }) {
       <Card delay={delay}>
         <SectionTitle title="Coach" subtitle="Nog niet geconfigureerd." right={<Bot className="size-4 text-ink-3" />} />
         <p className="text-[13.5px] leading-relaxed text-ink-2">
-          De gesprekscoach heeft een API-sleutel van Anthropic nodig op de server. Zet <code className="num">ANTHROPIC_API_KEY</code>{' '}
+          De gesprekscoach heeft een API-sleutel van OpenAI nodig op de server. Zet <code className="num">OPENAI_API_KEY</code>{' '}
           in de Replit Secrets en herstart. De sleutel komt nooit in de browser: alles loopt via de server.
         </p>
         <p className="mt-2 text-[13px] leading-relaxed text-ink-3">
@@ -109,7 +120,7 @@ export function CoachChat({ delay = 0 }: { delay?: number }) {
     <Card delay={delay}>
       <SectionTitle
         title="Coach"
-        subtitle="Kijkt mee in je data. Stelt voor, past nooit zelf toe."
+        subtitle={model ? `Kijkt mee in je data. Stelt voor, past nooit zelf toe. Model: ${model}` : 'Kijkt mee in je data. Stelt voor, past nooit zelf toe.'}
         right={
           turns.length > 0 ? (
             <button

@@ -1,34 +1,42 @@
 /**
- * Het antwoord van Claude uitpakken.
+ * Het antwoord van het model uitpakken.
  *
  * Apart van de server zodat dit getest kan worden zonder een echte aanroep.
  * Tekst en voorstellen komen los terug: een voorstel is geen tekst maar een
  * handeling die in de client nog langs de veiligheidsregels moet.
  */
 
-import type Anthropic from '@anthropic-ai/sdk'
+import type OpenAI from 'openai'
+import { ADJUSTMENT_TOOL_NAME, parseProposalArguments, type ProposalArguments } from './tools.ts'
 
 export interface ParsedCoachReply {
   text: string
-  proposals: unknown[]
-  refused: boolean
+  proposals: ProposalArguments[]
+  /** Het model stopte om een andere reden dan een afgerond antwoord. */
+  incomplete: boolean
 }
 
-export function parseCoachResponse(response: Anthropic.Message, toolName: string): ParsedCoachReply {
-  const text = response.content
-    .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-    .map((block) => block.text)
-    .join('\n')
-    .trim()
+export function parseCoachResponse(completion: OpenAI.Chat.Completions.ChatCompletion): ParsedCoachReply {
+  const choice = completion.choices[0]
+  if (!choice) return { text: '', proposals: [], incomplete: true }
 
-  const proposals = response.content
-    .filter((block): block is Anthropic.ToolUseBlock => block.type === 'tool_use')
-    .filter((block) => block.name === toolName)
+  const text = (choice.message.content ?? '').trim()
+
+  const proposals = (choice.message.tool_calls ?? [])
+    .filter(
+      (call): call is OpenAI.Chat.Completions.ChatCompletionMessageFunctionToolCall =>
+        call.type === 'function' && call.function.name === ADJUSTMENT_TOOL_NAME,
+    )
+    .map((call) => parseProposalArguments(call.function.arguments))
+    .filter((proposal): proposal is ProposalArguments => proposal !== null)
     // Hooguit één voorstel per antwoord: twee aanpassingen tegelijk is precies
     // wat de instructie verbiedt, en een model dat zich vergist mag dat niet
     // alsnog via de achterdeur doen.
     .slice(0, 1)
-    .map((block) => block.input)
 
-  return { text, proposals, refused: response.stop_reason === 'refusal' }
+  return {
+    text,
+    proposals,
+    incomplete: choice.finish_reason === 'length' || choice.finish_reason === 'content_filter',
+  }
 }

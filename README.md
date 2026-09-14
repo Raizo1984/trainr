@@ -16,7 +16,7 @@ npm run build       # typecheck (app en server) + productiebundel
 npm start           # serveert de gebouwde app plus de coach-API
 ```
 
-Zonder `ANTHROPIC_API_KEY` werkt alles behalve de gesprekscoach. De adaptieve
+Zonder `OPENAI_API_KEY` werkt alles behalve de gesprekscoach. De adaptieve
 planner heeft geen internet nodig.
 
 Doorloop in een echte browser, tegen een draaiende `npm run preview`:
@@ -25,7 +25,12 @@ Doorloop in een echte browser, tegen een draaiende `npm run preview`:
 npm run build && npm run preview &
 npm run e2e          # intake, rode vlaggen, sessie loggen, navigatie
 npm run e2e:mobile   # elk scherm op 390 pixels: overflow en raakvlakken
+npm run e2e:coach    # controleert wat er werkelijk naar OpenAI gaat, zonder sleutel
 ```
+
+`e2e:coach` start een nepserver die zich voordoet als OpenAI en controleert het
+verzoek dat de backend verstuurt. Typecontrole ziet niet of een veldnaam klopt
+met wat de API verwacht; deze controle wel, en hij kost geen tokens.
 
 Bij de eerste start kun je de intake doorlopen of op **demodata laden** klikken:
 veertien weken fase 1 van een gebruiker met knieklachten en een verhoogd
@@ -107,12 +112,20 @@ je logs, gewicht en voeding af welke aanpassing het programma nodig heeft, en
 past die na akkoord echt toe: sets erbij of eraf, een trede terug, een oefening
 pauzeren, een deload naar voren halen. Werkt offline en kost niets.
 
-**Laag 2, de gesprekscoach** draait op Claude via de backend in `server/`. Hij
+**Laag 2, de gesprekscoach** draait op OpenAI via de backend in `server/`. Hij
 leest een samenvatting van je data en kan aanpassingen voorstellen.
 
+De provider zit uitsluitend in `server/`. De planner, de veiligheidspoort en de
+contextopbouw staan in `src/domain` en weten niets van OpenAI: van provider
+wisselen is een wijziging in één map, niet in de app.
+
 Wat de twee lagen scheidt is de veiligheidspoort. Elk voorstel, of het nu van de
-regelmotor of van het taalmodel komt, gaat langs `validateAdjustment`. Die poort
-laat onder meer niet door:
+regelmotor of van het taalmodel komt, gaat langs `validateAdjustment`. Daarvoor
+zit nog een controle op de server: een taalmodel levert JSON als tekst, en die
+tekst hoeft nergens aan te voldoen. Een verzonnen soort aanpassing of een
+voorstel zonder onderbouwing strandt daar en bereikt de client niet.
+
+De poort laat onder meer niet door:
 
 - zwaarder maken bij pijn op of boven je persoonlijke grens
 - zwaarder maken terwijl de techniek nog niet staat
@@ -131,12 +144,22 @@ stap die bestaat; bij een streng risicoprofiel is die stap al meer dan de
 weekgrens toestaat. Zonder die nuance zou juist de gebruiker die de meeste
 bescherming nodig heeft als enige nooit meer vooruit kunnen.
 
-### Sleutel en kosten
+### Sleutel, model en kosten
 
 De sleutel staat uitsluitend op de server, in de Replit Secrets onder
-`ANTHROPIC_API_KEY`. Hij komt nooit in de browser: alles wat de browser kent kan
-iedere bezoeker met de ontwikkelaarsconsole uitlezen. Reken op ongeveer een tot
-drie cent per coachgesprek.
+`OPENAI_API_KEY`. Hij komt nooit in de browser: alles wat de browser kent kan
+iedere bezoeker met de ontwikkelaarsconsole uitlezen.
+
+Het model staat in `OPENAI_MODEL` en niet in de code. Modelnamen bij OpenAI
+veranderen regelmatig en welke beschikbaar zijn hangt af van het account; een
+naam hardcoderen levert vroeg of laat een 404 op die niemand verwacht. Zonder
+instelling gebruikt de server `gpt-4o`. Welke namen jouw sleutel mag gebruiken
+zie je op `/api/coach/models`; een onbekend model geeft een foutmelding die
+precies dat zegt.
+
+Wat een gesprek kost hangt af van het gekozen model. Kijk op de prijslijst van
+OpenAI voor het model dat je instelt; een gesprek stuurt ongeveer twee- tot
+vierduizend tokens aan context mee.
 
 De coach krijgt een samenvatting, geen dump: geen naam, geen geboortejaar, geen
 vrije notities uit de intake. Sectie 8.2 schrijft voor dat er niet meer wordt
