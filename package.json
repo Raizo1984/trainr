@@ -11,7 +11,7 @@
     "e2e": "node e2e/flow.mjs",
     "e2e:mobile": "node e2e/mobile.mjs",
     "dev:server": "tsx watch server/index.ts",
-    "dev:all": "npm run build && npm run dev:server",
+    "dev:all": "node scripts/dev.mjs",
     "start": "tsx server/index.ts",
     "typecheck:server": "tsc --noEmit -p server/tsconfig.json",
     "e2e:coach": "node e2e/coach-integration.mjs"

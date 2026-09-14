@@ -26,7 +26,13 @@ const app = express()
 // grens kan iemand de server als generiek doorgeefluik naar OpenAI gebruiken.
 app.use(express.json({ limit: '1mb' }))
 
-const PORT = Number(process.env.PORT ?? 3001)
+/**
+ * Poort. Replit zet `PORT` niet altijd, maar wijst in `.replit` wel poort 5000
+ * naar buiten. Luisteren op 3001 levert daar een app op die draait en toch
+ * onbereikbaar is; dat kost meer tijd om te vinden dan het waard is.
+ * `REPL_ID` staat alleen op Replit.
+ */
+const PORT = Number(process.env.PORT ?? (process.env.REPL_ID ? 5000 : 3001))
 
 /**
  * Het model staat in de omgeving, niet in de code. Modelnamen bij OpenAI

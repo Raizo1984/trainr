@@ -9,12 +9,15 @@ en proactieve coaching.
 
 ```bash
 npm install
-npm run dev         # frontend, poort 5173
-npm run dev:server  # backend voor de coach, poort 3001
-npm test            # 155 tests op de beslisregels
-npm run build       # typecheck (app en server) + productiebundel
-npm start           # serveert de gebouwde app plus de coach-API
+npm run dev:all   # frontend op 5000 plus backend op 3001, met hot reload
+npm test          # 162 tests op de beslisregels
+npm run build     # typecontrole van app en server, daarna de bundel
+npm start         # serveert de gebouwde app plus de coach-API op een poort
 ```
+
+Alleen `npm run dev` start de frontend zonder backend. De app werkt dan, maar de
+coach lijkt kapot terwijl hij simpelweg niet draait. Draaien op Replit staat in
+`replit.md`.
 
 Zonder `OPENAI_API_KEY` werkt alles behalve de gesprekscoach. De adaptieve
 planner heeft geen internet nodig.
