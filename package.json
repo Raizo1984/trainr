@@ -4,12 +4,17 @@
   "description": "Evidence-based personalized fitness coach — intake, fasering, The Rule, veiligheid, voeding en coaching.",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b --noEmit && vite build",
+    "build": "tsc -b --noEmit && tsc --noEmit -p server/tsconfig.json && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc -b --noEmit",
     "e2e": "node e2e/flow.mjs",
-    "e2e:mobile": "node e2e/mobile.mjs"
+    "e2e:mobile": "node e2e/mobile.mjs",
+    "dev:server": "tsx watch server/index.ts",
+    "dev:all": "npm run build && npm run dev:server",
+    "start": "tsx server/index.ts",
+    "typecheck:server": "tsc --noEmit -p server/tsconfig.json",
+    "e2e:coach": "node e2e/coach-integration.mjs"
   },
   "repository": {
     "type": "git",
@@ -23,19 +28,23 @@
   "homepage": "https://github.com/Raizo1984/trainr#readme",
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "@types/express": "^5.0.6",
     "@types/node": "^26.5.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "playwright": "^1.63.0",
     "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.13",
     "typescript": "^7.0.2",
     "vite": "^8.3.0",
     "vitest": "^5.0.0"
   },
   "dependencies": {
+    "express": "^5.2.1",
     "lucide-react": "^1.46.0",
     "motion": "^13.2.0",
+    "openai": "^7.15.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "recharts": "^3.10.1",

@@ -13,7 +13,8 @@ import type {
   SafetySettings,
   SessionTemplate,
 } from './types'
-import { selectStep } from './exercises'
+import { getLadder, selectStep } from './exercises'
+import { blockPlan, dosageFor, isMaintenanceBlock, type SpecialisationFocus } from './blocks'
 
 /**
  * Hoogste toegestane trede per fase. Houdt gevorderde varianten uit een fase
@@ -29,12 +30,19 @@ const MAX_RUNG_BY_PHASE: Record<PhaseId, number> = {
   6: 6,
 }
 
-interface BuildContext {
+export interface BuildContext {
   phase: PhaseId
   equipment: Equipment[]
   safety: SafetySettings
   /** Weeknummer binnen de fase, 1-based. Stuurt de leerweken (sectie 3.3). */
   week: number
+  /**
+   * Skillladders die in deze fase in het programma horen (sectie 3.2, fase 3).
+   * Komt uit `activeSkillLadders`; leeg betekent alleen de standaardsplit.
+   */
+  skills?: string[]
+  /** Zelfgekozen focus voor een specialisatiecyclus in fase 5. */
+  focus?: SpecialisationFocus
 }
 
 function sets(base: number, ctx: BuildContext): number {
@@ -51,15 +59,43 @@ function ex(
 ): PrescribedExercise {
   const cap = Math.min(spec.rungCap ?? 99, MAX_RUNG_BY_PHASE[ctx.phase])
   const step = selectStep(ladderId, ctx.equipment, cap)
+
+  // Vaste blokken (warming-up, cool-down) blijven buiten de blokdosering:
+  // die horen elke sessie hetzelfde te zijn.
+  if (spec.fixed) {
+    return {
+      ladderId,
+      stepId: step.id,
+      sets: spec.sets,
+      repMin: spec.repMin,
+      repMax: spec.repMax,
+      targetRir: spec.rir ?? 3,
+      fixed: true,
+      note: spec.note,
+    }
+  }
+
+  const plan = blockPlan(ctx.phase, ctx.week, ctx.focus)
+  const isSkill = getLadder(ladderId).pattern === 'skill'
+  const base = { sets: spec.sets, repMin: spec.repMin, repMax: spec.repMax, rir: spec.rir ?? 3 }
+  const { dosage, role } = dosageFor(ladderId, base, plan, isSkill)
+
+  // Onderhoud in fase 6 zonder piek: nog een set eraf, regelmaat blijft.
+  const maintenanceTrim = isMaintenanceBlock(ctx.phase, plan) ? 1 : 0
+
   return {
     ladderId,
     stepId: step.id,
-    sets: spec.fixed ? spec.sets : sets(spec.sets, ctx),
-    repMin: spec.repMin,
-    repMax: spec.repMax,
-    targetRir: spec.rir ?? 3,
-    fixed: spec.fixed,
-    note: spec.note,
+    sets: Math.max(1, sets(dosage.sets, ctx) - maintenanceTrim),
+    repMin: dosage.repMin,
+    repMax: dosage.repMax,
+    targetRir: dosage.rir,
+    note:
+      role === 'accent' && plan.accent
+        ? spec.note ?? 'Accent van dit blok. Hier mag het zwaar zijn.'
+        : role === 'onderhoud'
+          ? spec.note ?? 'Onderhoud. Niet zwaarder maken dan nodig.'
+          : spec.note,
   }
 }
 
@@ -138,14 +174,14 @@ function phase1(ctx: BuildContext): SessionTemplate[] {
  * De structuur blijft 36+ maanden gelijk; alleen de treden en belasting lopen op.
  */
 function splitPhase(ctx: BuildContext): SessionTemplate[] {
-  const heavy = ctx.phase >= 4
+  const plan = blockPlan(ctx.phase, ctx.week, ctx.focus)
   const lowerA: SessionTemplate = {
     id: 'lower-a',
     name: 'Onderlichaam A',
-    subtitle: heavy ? 'Kracht-accent: compounds zwaar, isolatie op onderhoud.' : 'Compounds 3x8-12, isolatie 3x10-15.',
+    subtitle: plan.accent || plan.focus ? plan.title : 'Compounds 3x8-12, isolatie 3x10-15.',
     warmup: warmup(ctx),
     main: [
-      ex('squat', ctx, { sets: 3, repMin: heavy ? 4 : 8, repMax: heavy ? 6 : 12, rir: heavy ? 2 : 3 }),
+      ex('squat', ctx, { sets: 3, repMin: 8, repMax: 12 }),
       ex('hinge', ctx, { sets: 3, repMin: 8, repMax: 12 }),
       ex('quad-iso', ctx, { sets: 3, repMin: 10, repMax: 15 }),
       ex('carry-core', ctx, { sets: 3, repMin: 8, repMax: 10 }),
@@ -158,7 +194,7 @@ function splitPhase(ctx: BuildContext): SessionTemplate[] {
     subtitle: 'Press 3x6-10, rows 3x8-12, pull 3x8-12, triceps 2x12-20.',
     warmup: warmup(ctx),
     main: [
-      ex('v-push', ctx, { sets: 3, repMin: heavy ? 5 : 6, repMax: 10, rir: heavy ? 2 : 3 }),
+      ex('v-push', ctx, { sets: 3, repMin: 6, repMax: 10 }),
       ex('h-pull', ctx, { sets: 3, repMin: 8, repMax: 12 }),
       ex('v-pull', ctx, { sets: 3, repMin: 8, repMax: 12, note: 'Skillwerk zit hierin, niet ernaast' }),
       ex('rear-delt', ctx, { sets: 2, repMin: 15, repMax: 20 }),
@@ -172,7 +208,7 @@ function splitPhase(ctx: BuildContext): SessionTemplate[] {
     subtitle: 'Hinge 3x8-10, quads 2x10-15, curl 2x10-15, kuit 3x12-20.',
     warmup: warmup(ctx),
     main: [
-      ex('hinge', ctx, { sets: 3, repMin: 8, repMax: 10, rir: heavy ? 2 : 3 }),
+      ex('hinge', ctx, { sets: 3, repMin: 8, repMax: 10 }),
       ex('quad-iso', ctx, { sets: 2, repMin: 10, repMax: 15 }),
       ex('ham-iso', ctx, { sets: 2, repMin: 10, repMax: 15 }),
       ex('calf', ctx, { sets: 3, repMin: 12, repMax: 20 }),
@@ -193,7 +229,30 @@ function splitPhase(ctx: BuildContext): SessionTemplate[] {
     ],
     cooldown: cooldown(ctx),
   }
-  return [lowerA, upperA, lowerB, upperB]
+  const templates = [lowerA, upperA, lowerB, upperB]
+
+  // Skillwerk komt in de bovenlichaamssessies, niet als losse sessie ernaast
+  // (sectie 3.2, fase 3: geïntegreerd, niet apart).
+  const skills = ctx.skills ?? []
+  if (skills.length > 0) {
+    const upperSessions = [upperA, upperB]
+    skills.forEach((ladderId, i) => {
+      const target = upperSessions[i % upperSessions.length]
+      target.main.splice(1, 0, ex(ladderId, ctx, { sets: 3, repMin: 3, repMax: 8, rir: 3, note: 'Skillwerk: techniek boven reps. Stop bij vormverlies.' }))
+    })
+  }
+
+  if (isMaintenanceBlock(ctx.phase, plan)) {
+    // Onderhoud: drie sessies per week in plaats van vier. Minder volume,
+    // zelfde regelmaat. Dit is het schema dat je jaren volhoudt.
+    return [
+      { ...lowerA, name: 'Onderlichaam', subtitle: 'Onderhoud. Alles blijft staan, niets wordt zwaarder.' },
+      { ...upperA, name: 'Bovenlichaam A', subtitle: 'Onderhoud, met ruimte voor je skills.' },
+      { ...upperB, name: 'Bovenlichaam B', subtitle: 'Onderhoud. Regelmaat wint van intensiteit.' },
+    ]
+  }
+
+  return templates
 }
 
 export function buildTemplates(ctx: BuildContext): SessionTemplate[] {

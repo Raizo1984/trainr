@@ -5,11 +5,13 @@
  */
 
 import { motion } from 'motion/react'
-import { Check, ChevronRight, CircleAlert, CircleDashed, Lock, Target } from 'lucide-react'
+import { Check, ChevronRight, CircleAlert, CircleDashed, Target } from 'lucide-react'
 import { Badge, Button, Card, CheckRow, ProgressRing, SectionTitle, SourceNote } from '@/ui/primitives'
 import { useAppStore } from '@/store/useAppStore'
 import { useCurrentPhase, useDeloadInfo, useGate, usePhaseWeek, useTemplates } from '@/store/selectors'
 import { PHASES } from '@/domain/phases'
+import { BlockCard, SkillPathsCard } from './BlockCard'
+import { ActiveAdjustmentsCard } from '@/features/adapt/AdjustmentCards'
 import { getStep } from '@/domain/exercises'
 import type { GateStatus } from '@/domain/types'
 
@@ -57,6 +59,10 @@ export default function PlanScreen() {
         </div>
         <p className="mt-3 text-[12px] text-ink-3">Fundament: {phase.sources.join(' · ')}</p>
       </Card>
+
+      <BlockCard />
+
+      <ActiveAdjustmentsCard delay={0.06} />
 
       <Card delay={0.05}>
         <SectionTitle
@@ -203,36 +209,25 @@ export default function PlanScreen() {
         </ol>
       </Card>
 
-      <DreamGoals />
+      <SkillPathsCard />
+      <VisionCard />
     </div>
   )
 }
 
-function DreamGoals() {
-  const dreams = useAppStore((s) => s.intake.goals.dreamGoals)
+/** Het eindbeeld in de eigen woorden van de gebruiker. */
+function VisionCard() {
   const vision = useAppStore((s) => s.intake.goals.vision48m)
-  const phase = useCurrentPhase()
-  if (dreams.length === 0 && !vision) return null
+  if (!vision) return null
 
   return (
-    <Card delay={0.22}>
-      <SectionTitle title="Waar dit heen gaat" subtitle="Je eigen woorden uit de intake." right={<Target className="size-4 text-ink-3" />} />
-      {vision && <p className="text-[14px] italic leading-relaxed text-ink-2">“{vision}”</p>}
-      {dreams.length > 0 && (
-        <div className="mt-4 flex flex-wrap gap-2">
-          {dreams.map((dream) => (
-            <span key={dream} className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-[12.5px] font-medium text-ink-2">
-              {phase.id >= 3 ? <CircleDashed className="size-3.5" style={{ color: 'var(--brand-2)' }} /> : <Lock className="size-3.5 text-ink-3" />}
-              {dream}
-            </span>
-          ))}
-        </div>
-      )}
-      <p className="mt-3 text-[12.5px] text-ink-3">
-        {phase.id >= 3
-          ? 'Deze doelen zitten nu in je programma verwerkt, niet als los kunstje ernaast.'
-          : 'Skills komen vanaf fase 3 in het programma. Eerst een lichaam dat ze kan dragen.'}
-      </p>
+    <Card delay={0.26}>
+      <SectionTitle
+        title="Waar dit heen gaat"
+        subtitle="Je eigen woorden uit de intake."
+        right={<Target className="size-4 text-ink-3" />}
+      />
+      <p className="text-[14px] italic leading-relaxed text-ink-2">“{vision}”</p>
     </Card>
   )
 }

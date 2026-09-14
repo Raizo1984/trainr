@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 modules = ["nodejs-20", "web"]
 
 [nix]
@@ -41,3 +42,19 @@ externalPort = 3000
 [[ports]]
 localPort = 5173
 externalPort = 5173
+=======
+run = "npm run build && npm start"
+entrypoint = "server/index.ts"
+
+[nix]
+channel = "stable-24_05"
+
+[deployment]
+run = ["sh", "-c", "npm run build && npm start"]
+build = ["sh", "-c", "npm install && npm run build"]
+deploymentTarget = "autoscale"
+
+[[ports]]
+localPort = 3001
+externalPort = 80
+>>>>>>> 44143cc67eaa6dc261a591039b9a46c5e78dff64

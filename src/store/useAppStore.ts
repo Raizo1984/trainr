@@ -14,7 +14,9 @@ import type {
   GateCriterionId,
   IntakeData,
   Measurement,
+  MovementAssessment,
   NutritionDay,
+  PlanAdjustment,
   PhaseId,
   SessionLog,
 } from '@/domain/types'
@@ -29,9 +31,15 @@ export interface AppStore extends AppState {
   logSession: (session: SessionLog) => void
   addFollowUp: (sessionId: string, followUp: FollowUp24h) => void
   addMeasurement: (measurement: Measurement) => void
+  saveMovementAssessment: (assessment: MovementAssessment) => void
+  proposeAdjustment: (adjustment: PlanAdjustment) => void
+  acceptAdjustment: (id: string) => void
+  rejectAdjustment: (id: string) => void
+  revokeAdjustment: (id: string) => void
   removeMeasurement: (id: string) => void
   addNutritionDay: (day: NutritionDay) => void
   confirmGate: (criterion: GateCriterionId, value: boolean) => void
+  setBlockFocus: (focus: 'massa' | 'kracht' | 'skill' | undefined) => void
   advancePhase: () => void
   setPhase: (phase: PhaseId) => void
   raiseMedicalHold: (reason: string) => void
@@ -88,6 +96,29 @@ export const useAppStore = create<AppStore>()(
           ),
         })),
 
+      saveMovementAssessment: (assessment) =>
+        set((state) => ({
+          movementAssessments: [
+            ...state.movementAssessments.filter((a) => a.id !== assessment.id),
+            assessment,
+          ].sort((a, b) => a.date.localeCompare(b.date)),
+        })),
+
+      /** Voegt een voorstel toe, of vervangt een bestaand voorstel met dezelfde id. */
+      proposeAdjustment: (adjustment) =>
+        set((state) => ({
+          adjustments: [...state.adjustments.filter((a) => a.id !== adjustment.id), adjustment],
+        })),
+
+      acceptAdjustment: (id) =>
+        set((state) => ({
+          adjustments: state.adjustments.map((a) => (a.id === id ? { ...a, accepted: true } : a)),
+        })),
+
+      rejectAdjustment: (id) => set((state) => ({ adjustments: state.adjustments.filter((a) => a.id !== id) })),
+
+      revokeAdjustment: (id) => set((state) => ({ adjustments: state.adjustments.filter((a) => a.id !== id) })),
+
       removeMeasurement: (id) =>
         set((state) => ({ measurements: state.measurements.filter((m) => m.id !== id) })),
 
@@ -102,6 +133,8 @@ export const useAppStore = create<AppStore>()(
         set((state) => ({
           phase: { ...state.phase, confirmations: { ...state.phase.confirmations, [criterion]: value } },
         })),
+
+      setBlockFocus: (focus) => set((state) => ({ phase: { ...state.phase, blockFocus: focus } })),
 
       advancePhase: () =>
         set((state) => {
@@ -135,9 +168,9 @@ export const useAppStore = create<AppStore>()(
       resetAll: () => set(emptyState()),
 
       exportJson: () => {
-        const { intake, risk, phase, sessions, measurements, nutritionDays, medicalHold } = get()
+        const { intake, risk, phase, sessions, measurements, movementAssessments, nutritionDays, adjustments, medicalHold } = get()
         return JSON.stringify(
-          { exportedAt: new Date().toISOString(), intake, risk, phase, sessions, measurements, nutritionDays, medicalHold },
+          { exportedAt: new Date().toISOString(), intake, risk, phase, sessions, measurements, movementAssessments, nutritionDays, adjustments, medicalHold },
           null,
           2,
         )
@@ -152,6 +185,8 @@ export const useAppStore = create<AppStore>()(
         phase: state.phase,
         sessions: state.sessions,
         measurements: state.measurements,
+        movementAssessments: state.movementAssessments,
+        adjustments: state.adjustments,
         nutritionDays: state.nutritionDays,
         acknowledgedAlerts: state.acknowledgedAlerts,
         medicalHold: state.medicalHold,

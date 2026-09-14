@@ -528,6 +528,53 @@ export interface CoachAlert {
 }
 
 /* ------------------------------------------------------------------ */
+/* Bewegingskwaliteit (sectie 6.1)                                      */
+/* ------------------------------------------------------------------ */
+
+export type Grade = 'groen' | 'geel' | 'rood'
+
+export interface MovementAssessment {
+  id: string
+  date: IsoDate
+  /** Score per checkpunt, gesleuteld op `CheckItem.id`. */
+  grades: Record<string, Grade>
+  note?: string
+}
+
+/* ------------------------------------------------------------------ */
+/* Planaanpassingen                                                     */
+/* ------------------------------------------------------------------ */
+
+export type AdjustmentKind =
+  | 'sets-omhoog'
+  | 'sets-omlaag'
+  | 'trede-omlaag'
+  | 'trede-omhoog'
+  | 'oefening-pauzeren'
+  | 'repbereik-wijzigen'
+  | 'deload-vervroegen'
+  | 'frequentie-omlaag'
+
+export type AdjustmentSource = 'regel' | 'coach'
+
+export interface PlanAdjustment {
+  id: string
+  kind: AdjustmentKind
+  /** Op welke lader de aanpassing slaat. Leeg betekent: hele programma. */
+  ladderId?: string
+  amount?: number
+  repMin?: number
+  repMax?: number
+  reason: string
+  source: AdjustmentSource
+  createdAt: IsoDate
+  /** Vervalt automatisch na dit aantal weken. Leeg betekent: tot intrekking. */
+  expiresAfterWeeks?: number
+  /** Door de gebruiker geaccepteerd. Voorstellen wachten hierop. */
+  accepted: boolean
+}
+
+/* ------------------------------------------------------------------ */
 /* Applicatiestatus                                                     */
 /* ------------------------------------------------------------------ */
 
@@ -537,10 +584,19 @@ export interface PhaseState {
   /** Handmatig bevestigde gate-criteria (bron `bevestiging`). */
   confirmations: Partial<Record<GateCriterionId, boolean>>
   history: Array<{ phase: PhaseId; from: IsoDate; to: IsoDate }>
+  /**
+   * Zelfgekozen focus voor de specialisatiecyclus in fase 5 (sectie 3.2).
+   * Leeg betekent: de app rouleert massa, kracht en skill.
+   */
+  blockFocus?: 'massa' | 'kracht' | 'skill'
 }
 
 export interface AppState {
   intake: IntakeData
+  /** Actieve en voorgestelde planaanpassingen (adapt.ts). */
+  adjustments: PlanAdjustment[]
+  /** Bewegingskwaliteit-beoordelingen (sectie 6.1), nieuwste laatst. */
+  movementAssessments: MovementAssessment[]
   risk: RiskAssessment | null
   phase: PhaseState
   sessions: SessionLog[]

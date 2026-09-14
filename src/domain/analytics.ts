@@ -84,21 +84,50 @@ export function weekStart(iso: string): string {
 /** Sets per gewrichtsgroep in de laatste zeven dagen (sectie 9.2, systeem B). */
 export type JointGroup = 'schouder' | 'elleboog' | 'knie' | 'heup' | 'rug'
 
+/**
+ * Volumeplafonds per week.
+ *
+ * Schouder, elleboog en knie komen uit sectie 9.2, systeem B. Heup en rug
+ * staan daar niet: die zijn hier toegevoegd omdat ze wel meetellen, maar hun
+ * grens is ruimer omdat zowat elke onderlichaamsoefening erop uitkomt. Een
+ * gewone vierdaagse split met squat en hinge tikt anders elke week tegen het
+ * plafond, en een waarschuwing die altijd afgaat is geen waarschuwing.
+ */
 export const JOINT_CAPS: Record<JointGroup, number> = {
   schouder: 15,
   elleboog: 12,
   knie: 15,
-  heup: 18,
-  rug: 18,
+  heup: 24,
+  rug: 24,
 }
 
+/**
+ * Alleen deze drie zijn harde grenzen die een aanpassing kunnen tegenhouden.
+ * Voor heup en rug volstaat een melding: hun plafond is een schatting, en een
+ * schatting hoort de gebruiker niet te blokkeren.
+ */
+export const HARD_CAP_JOINTS: JointGroup[] = ['schouder', 'elleboog', 'knie']
+
+/**
+ * Welke gewrichten een bewegingspatroon belast, voor de volumeplafonds.
+ *
+ * Geteld zoals in krachttraining gebruikelijk is: per belaste groep, niet per
+ * aangeraakt gewricht. Een barbell row raakt de schouder, maar telt als
+ * trek- en rugvolume, niet als schoudervolume. Alles meetellen wat een
+ * gewricht passeert laat een doodgewone vierdaagse split al over elk plafond
+ * gaan, en een grens die altijd afgaat beschermt niemand.
+ *
+ * De elleboog telt trekkend en direct armwerk: sectie 9.2 noemt bij dat
+ * plafond uitdrukkelijk "traction work", en daar ontstaat de peesoverbelasting
+ * die de grens moet voorkomen.
+ */
 const PATTERN_JOINTS: Record<MovementPattern, JointGroup[]> = {
   squat: ['knie', 'heup'],
   hinge: ['heup', 'rug'],
-  'horizontale-push': ['schouder', 'elleboog'],
-  'verticale-push': ['schouder', 'elleboog'],
-  'horizontale-pull': ['schouder', 'elleboog', 'rug'],
-  'verticale-pull': ['schouder', 'elleboog'],
+  'horizontale-push': ['schouder'],
+  'verticale-push': ['schouder'],
+  'horizontale-pull': ['elleboog', 'rug'],
+  'verticale-pull': ['elleboog', 'rug'],
   'carry-core': ['rug'],
   isolatie: [],
   skill: ['schouder', 'elleboog'],

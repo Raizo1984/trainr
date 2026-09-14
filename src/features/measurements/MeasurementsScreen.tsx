@@ -14,6 +14,7 @@ import { historyFor, round1, todayIso } from '@/domain/analytics'
 import { heaviestLoad, workingSets } from '@/domain/rule'
 import { getLadder } from '@/domain/exercises'
 import type { Measurement } from '@/domain/types'
+import { MovementScreenCard } from './MovementScreenCard'
 
 export default function MeasurementsScreen() {
   const measurements = useAppStore((s) => s.measurements)
@@ -55,6 +56,8 @@ export default function MeasurementsScreen() {
           <LoadChart data={loadSeries.data} series={loadSeries.series} />
         </Card>
       )}
+
+      <MovementScreenCard delay={0.2} />
 
       <Card delay={0.22}>
         <SectionTitle
