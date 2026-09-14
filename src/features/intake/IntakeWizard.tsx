@@ -101,24 +101,33 @@ export default function IntakeWizard({
 
       <Stepper step={step} onJump={(i) => i < step && setStep(i)} />
 
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={STEPS[step].id}
-          initial={{ opacity: 0, x: 24 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -24 }}
-          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-        >
-          {step === 0 && <BasisStep intake={intake} patch={patch} />}
-          {step === 1 && <MedicalStep intake={intake} patch={patch} />}
-          {step === 2 && <TrainingStep intake={intake} patch={patch} />}
-          {step === 3 && <ComplaintStep intake={intake} patch={patch} />}
-          {step === 4 && <NutritionStep intake={intake} patch={patch} />}
-          {step === 5 && <GoalsStep intake={intake} patch={patch} />}
-          {step === 6 && <LifestyleStep intake={intake} patch={patch} />}
-          {step === 7 && <SummaryStep intake={intake} />}
-        </motion.div>
-      </AnimatePresence>
+      {/*
+        De stap schuift 24px van rechts in beeld. Zonder deze clip maakt dat de
+        pagina tijdens de animatie even breder dan het scherm, wat op een
+        telefoon een horizontale schuifbeweging oplevert van een fractie van een
+        seconde. Zichtbaar genoeg om te irriteren, kort genoeg om over het hoofd
+        te zien in een test die na afloop meet.
+      */}
+      <div className="overflow-x-clip">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={STEPS[step].id}
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {step === 0 && <BasisStep intake={intake} patch={patch} />}
+            {step === 1 && <MedicalStep intake={intake} patch={patch} />}
+            {step === 2 && <TrainingStep intake={intake} patch={patch} />}
+            {step === 3 && <ComplaintStep intake={intake} patch={patch} />}
+            {step === 4 && <NutritionStep intake={intake} patch={patch} />}
+            {step === 5 && <GoalsStep intake={intake} patch={patch} />}
+            {step === 6 && <LifestyleStep intake={intake} patch={patch} />}
+            {step === 7 && <SummaryStep intake={intake} />}
+          </motion.div>
+        </AnimatePresence>
+      </div>
 
       <div
         className="sticky bottom-0 z-20 -mx-4 mt-6 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl md:static md:mx-0 md:flex-nowrap md:border-0 md:bg-transparent md:px-0 md:pb-0 md:backdrop-blur-none"

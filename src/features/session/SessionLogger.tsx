@@ -17,7 +17,9 @@ import {
   Pause,
   Plus,
   Save,
+  OctagonX,
   Trash2,
+  TriangleAlert,
   Undo2,
 } from 'lucide-react'
 import {
@@ -32,6 +34,7 @@ import {
   SourceNote,
   TextArea,
   cx,
+  TONE_STYLE,
 } from '@/ui/primitives'
 import { useAppStore } from '@/store/useAppStore'
 import { useCurrentPhase, useDeloadInfo, usePendingFollowUps, useSafety, useTemplates } from '@/store/selectors'
@@ -39,7 +42,8 @@ import { prescribeSession, type Prescription } from '@/domain/prescribe'
 import { getLadder, getStep } from '@/domain/exercises'
 import { todayIso } from '@/domain/analytics'
 import { BODY_REGIONS, REGION_LABEL } from '@/domain/types'
-import type { BodyRegion, ExerciseLog, Pain, Scale5, SessionLog, SetEntry } from '@/domain/types'
+import type { BodyRegion, ExerciseLog, LadderStep, Pain, Scale5, SessionLog, SetEntry } from '@/domain/types'
+import { feedbackForSet, verdictTone } from '@/domain/setFeedback'
 
 type Draft = Record<string, SetEntry[]>
 
@@ -383,7 +387,7 @@ function ExerciseCard({
                   <p className="mt-1"><span className="font-semibold text-ink">Cue:</span> {step.cue}</p>
                   {prescription.decision && (
                     <p className="mt-1.5 border-t border-line pt-1.5">
-                      <span className="font-semibold text-ink">Aanpassing:</span> {prescription.decision.reason}
+                      <span className="font-semibold text-ink">Vanuit vorige sessie:</span> {prescription.decision.reason}
                     </p>
                   )}
                   {prescription.note && !ladder.rule.startsWith(prescription.note) && (
@@ -404,6 +408,12 @@ function ExerciseCard({
                 />
               ))}
 
+              <SetVerdictPanel
+                sets={sets}
+                prescription={prescription}
+                loadType={step.loadType}
+              />
+
               <button
                 onClick={addSet}
                 className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-line py-2.5 text-[13px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
@@ -417,6 +427,75 @@ function ExerciseCard({
         )}
       </AnimatePresence>
     </motion.section>
+  )
+}
+
+/**
+ * Oordeel over de set die je zojuist hebt ingevuld.
+ *
+ * Staat bewust onder de lijst en niet in een venster: je kijkt hier tussen twee
+ * sets door naar, met een telefoon in je hand en weinig geduld. Het oordeel
+ * komt uit dezelfde regels als de beslissing na afloop, dus wat hier staat
+ * spreekt de weekbeslissing nooit tegen.
+ */
+function SetVerdictPanel({
+  sets,
+  prescription,
+  loadType,
+}: {
+  sets: SetEntry[]
+  prescription: Prescription
+  loadType: LadderStep['loadType']
+}) {
+  const safety = useSafety()
+  const deload = useDeloadInfo()
+  const last = sets[sets.length - 1]
+  if (!last) return null
+
+  const feedback = feedbackForSet({
+    set: last,
+    planned: {
+      sets: prescription.sets,
+      repMin: prescription.repMin,
+      repMax: prescription.repMax,
+      targetRir: prescription.targetRir,
+    },
+    setsDone: sets.length,
+    isDeload: deload.isDeload,
+    safety,
+    loadType,
+    fixed: prescription.fixed,
+  })
+  const tone = TONE_STYLE[verdictTone(feedback.verdict)]
+
+  return (
+    <motion.div
+      key={`${feedback.headline}${feedback.action}`}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className="rounded-xl border px-3.5 py-3"
+      style={{ background: tone.bg, borderColor: tone.border }}
+      role="status"
+      aria-live="polite"
+    >
+      <div className="flex items-start gap-2.5">
+        {feedback.verdict === 'stop' ? (
+          <OctagonX className="mt-px size-4 shrink-0" style={{ color: tone.fg }} />
+        ) : feedback.verdict === 'goed' ? (
+          <CircleCheck className="mt-px size-4 shrink-0" style={{ color: tone.fg }} />
+        ) : (
+          <TriangleAlert className="mt-px size-4 shrink-0" style={{ color: tone.fg }} />
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="text-[13.5px] font-semibold" style={{ color: tone.fg }}>
+            Set {sets.length}: {feedback.headline}
+          </div>
+          <p className="mt-0.5 text-[12.5px] leading-snug text-ink-2">{feedback.action}</p>
+          <div className="mt-1 text-[11px] text-ink-3">{feedback.source}</div>
+        </div>
+      </div>
+    </motion.div>
   )
 }
 

@@ -55,6 +55,25 @@ export interface ProgressionContext {
   followUpPain?: Pain
 }
 
+/**
+ * Drempels van De Regel, op één plek.
+ *
+ * Zowel de beslissing na afloop van een oefening (`decideProgression`) als de
+ * directe feedback tussen twee sets (`feedbackForSet`) leunt hierop. Stonden ze
+ * op twee plekken, dan lopen ze vroeg of laat uit elkaar en geeft de app tijdens
+ * het trainen ander advies dan erna. Dat is precies het soort verschil dat
+ * niemand opmerkt tot het fout gaat.
+ */
+export const PAIN_STOP: Pain = 5
+export const FORM_MIN = 4
+export const RIR_MIN = 2
+
+/** Hoeveel de belasting terug moet, per aanleiding. */
+export const REDUCE_PAIN_STOP = 0.5
+export const REDUCE_PAIN_CEILING = 0.7
+export const REDUCE_FORM = 0.85
+export const REDUCE_RIR = 0.92
+
 /** Belasting afronden op een stap die in de zaal ook echt bestaat. */
 export function roundLoad(kg: number): number {
   if (kg <= 0) return 0
@@ -168,13 +187,13 @@ export function decideProgression(ctx: ProgressionContext): ProgressionDecision 
 
   // 2. Pijn gaat altijd voor (principe 4).
   const pain = Math.max(maxPain(log), ctx.followUpPain ?? 0) as Pain
-  if (pain >= 5) {
+  if (pain >= PAIN_STOP) {
     const lower = regressStep(log.ladderId, log.stepId)
     return {
       action: 'pijn-protocol',
       next: lower
-        ? keep(log, current * 0.5, lower.id, 'omlaag')
-        : keep(log, current * 0.5, log.stepId, 'omlaag'),
+        ? keep(log, current * REDUCE_PAIN_STOP, lower.id, 'omlaag')
+        : keep(log, current * REDUCE_PAIN_STOP, log.stepId, 'omlaag'),
       reason: lower
         ? `Pijn ${pain}/10. Oefening pauzeren en één trede terug naar ${lower.name}, met halve belasting.`
         : `Pijn ${pain}/10. Oefening pauzeren, belasting halveren en bereik beperken tot pijnvrij.`,
@@ -185,7 +204,7 @@ export function decideProgression(ctx: ProgressionContext): ProgressionDecision 
   if (pain >= safety.painCeiling) {
     return {
       action: 'pijn-protocol',
-      next: keep(log, current * 0.7, log.stepId, 'omlaag'),
+      next: keep(log, current * REDUCE_PAIN_CEILING, log.stepId, 'omlaag'),
       reason: `Pijn ${pain}/10 zit op of boven je grens van ${safety.painCeiling}. Belasting 30% terug en 24-uursreactie afwachten.`,
       source: 'Sectie 4.3 trigger 1',
       flagged: true,
@@ -194,10 +213,10 @@ export function decideProgression(ctx: ProgressionContext): ProgressionDecision 
 
   // 3. Techniek. Score onder 4 betekent techniekverlies (sectie 4.2 stap 1).
   const form = minFormQuality(log)
-  if (form < 4) {
+  if (form < FORM_MIN) {
     return {
       action: 'techniek-herstellen',
-      next: keep(log, current * 0.85, log.stepId, 'omlaag'),
+      next: keep(log, current * REDUCE_FORM, log.stepId, 'omlaag'),
       reason: `Techniekscore ${form}/5. Belasting 15% terug tot de beweging weer schoon is. Techniekverlies betekent: set over.`,
       source: 'Sectie 4.2 stap 1 / 4.3 trigger 2',
       flagged: true,
@@ -206,10 +225,10 @@ export function decideProgression(ctx: ProgressionContext): ProgressionDecision 
 
   // 4. RIR. Doel is 2-4 reps in reserve; tot falen gaan is geen progressie.
   const last = finalWorkSet(log)!
-  if (last.rir < 2) {
+  if (last.rir < RIR_MIN) {
     return {
       action: 'belasting-verlagen',
-      next: keep(log, current * 0.92, log.stepId, 'omlaag'),
+      next: keep(log, current * REDUCE_RIR, log.stepId, 'omlaag'),
       reason: `RIR ${last.rir} op de laatste set. Dat is te dicht bij falen. Volgende sessie 8% lichter en opnieuw opbouwen.`,
       source: 'Sectie 4.2 / 9.2 D',
       flagged: true,
