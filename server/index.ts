@@ -20,6 +20,7 @@ import { COACH_SYSTEM } from './prompt.ts'
 import { ADJUSTMENT_TOOL } from './tools.ts'
 import { parseCoachResponse } from './parse.ts'
 import { COMPLAINT_SYSTEM, COMPLAINT_TOOL, COMPLAINT_TOOL_NAME, parseComplaintArguments } from './complaint.ts'
+import { REPORT_SYSTEM } from './report.ts'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -230,6 +231,60 @@ app.post('/api/klacht', async (req, res) => {
 
     res.json({
       ...gelezen.waarde,
+      usage: {
+        input: completion.usage?.prompt_tokens ?? 0,
+        output: completion.usage?.completion_tokens ?? 0,
+      },
+    })
+  } catch (error) {
+    stuurFout(res, error)
+  }
+})
+
+/**
+ * Het geschreven weekrapport.
+ *
+ * De cijfers staan al vast en komen mee vanuit de app. Het model schrijft er
+ * alleen een verband bij. De client controleert daarna of er geen getallen in
+ * staan die nergens uit volgen; gebeurt dat wel, dan toont hij het rapport niet.
+ */
+app.post('/api/weekrapport', async (req, res) => {
+  if (!process.env.OPENAI_API_KEY) {
+    res.status(503).json({
+      error: 'geen-sleutel',
+      message:
+        'Een geschreven rapport vraagt een sleutel. Zet OPENAI_API_KEY in de omgeving van de server. De cijfers en de wekelijkse check-in werken gewoon zonder.',
+    })
+    return
+  }
+
+  const { context } = req.body as { context?: unknown }
+  if (context === undefined || context === null) {
+    res.status(400).json({ error: 'geen-data', message: 'Er is geen weekdata meegestuurd.' })
+    return
+  }
+
+  const client = new OpenAI()
+
+  try {
+    const completion = await client.chat.completions.create({
+      model: MODEL,
+      max_completion_tokens: 400,
+      messages: [
+        { role: 'system', content: REPORT_SYSTEM },
+        { role: 'system', content: `DATA VAN DEZE WEEK\n${JSON.stringify(context, null, 1)}` },
+        { role: 'user', content: 'Schrijf het weekrapport.' },
+      ],
+    })
+
+    const text = completion.choices[0]?.message?.content?.trim() ?? ''
+    if (!text) {
+      res.status(502).json({ error: 'leeg', message: 'Het rapport kwam leeg terug.' })
+      return
+    }
+
+    res.json({
+      text,
       usage: {
         input: completion.usage?.prompt_tokens ?? 0,
         output: completion.usage?.completion_tokens ?? 0,

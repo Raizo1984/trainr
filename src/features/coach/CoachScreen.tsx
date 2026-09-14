@@ -9,6 +9,7 @@ import { Button, Card, EmptyState, SectionTitle, SourceNote } from '@/ui/primiti
 import { AlertCard } from './AlertCard'
 import { BlockReviewCard } from './BlockReviewCard'
 import { CoachChat } from './CoachChat'
+import { WeekReportCard } from './WeekReportCard'
 import { ProposalsCard } from '@/features/adapt/AdjustmentCards'
 import { useAlerts, useMonthlyRecap, useNutritionAlerts, useWeeklyCheckIn } from '@/store/selectors'
 import { useAppStore } from '@/store/useAppStore'
@@ -31,6 +32,8 @@ export default function CoachScreen() {
       </header>
 
       <CoachChat />
+
+      <WeekReportCard delay={0.05} />
 
       <ProposalsCard delay={0.06} />
 

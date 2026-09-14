@@ -33,11 +33,32 @@ npm run size         # bewaakt wat het eerste scherm over de lijn haalt
 npm run e2e:offline  # start de app opnieuw met het netwerk uit
 npm run e2e:speech   # spreekt een set in via een nepherkenner
 npm run e2e:complaint # meldt een klacht en controleert het voorstel
+npm run e2e:report   # weekrapport, inclusief een verzonnen getal
 ```
+
+De tests met een eigen server (`e2e:coach`, `e2e:complaint`, `e2e:report`)
+starten elk hun eigen backend. Draai ze los van elkaar, anders botsen ze op
+dezelfde poort.
 
 `e2e:coach` start een nepserver die zich voordoet als OpenAI en controleert het
 verzoek dat de backend verstuurt. Typecontrole ziet niet of een veldnaam klopt
 met wat de API verwacht; deze controle wel, en hij kost geen tokens.
+
+## Het weekrapport
+
+De cijfers staan al in de app. Het rapport voegt één ding toe: het verband
+ertussen. Dat je opkomst zakt terwijl je volume stijgt, zegt een tabel niet en
+moet je wel weten.
+
+Elk getal in de tekst wordt teruggezocht in je eigen data. Staat het er niet
+bij, dan komt het rapport niet in beeld en zegt de app waarom. Een taalmodel
+schrijft moeiteloos "je opkomst ging van 60 naar 85 procent" terwijl geen van
+beide getallen bestaat. Dat leest prettig en is onwaar, en in een rapport over
+je eigen vooruitgang is dat niet van de waarheid te onderscheiden zonder de bron
+ernaast te leggen.
+
+De controle staat in `src/domain/report.ts` en laat wel toe wat redelijk is: een
+verhouding als percentage opschrijven, of een gemiddelde afronden.
 
 ## Een klacht in je eigen woorden
 

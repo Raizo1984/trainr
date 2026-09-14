@@ -19,7 +19,8 @@
     "icons": "node scripts/icons.mjs",
     "e2e:offline": "node e2e/offline.mjs",
     "e2e:speech": "node e2e/speech.mjs",
-    "e2e:complaint": "node e2e/complaint.mjs"
+    "e2e:complaint": "node e2e/complaint.mjs",
+    "e2e:report": "node e2e/report.mjs"
   },
   "repository": {
     "type": "git",

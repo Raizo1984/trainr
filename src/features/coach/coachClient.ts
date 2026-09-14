@@ -72,3 +72,32 @@ export async function askCoach(messages: CoachMessage[], context: CoachContext):
 
   return (await response.json()) as CoachReply
 }
+
+/**
+ * Het geschreven weekrapport ophalen.
+ *
+ * De cijfers gaan mee als context en komen niet terug: wat terugkomt is alleen
+ * de tekst. De aanroeper leest die na met `controleerRapport` voordat hij hem
+ * toont, want een verzonnen getal in een rapport over je eigen vooruitgang is
+ * niet van de waarheid te onderscheiden zonder de bron ernaast.
+ */
+export async function fetchWeekReport(context: CoachContext): Promise<string> {
+  let response: Response
+  try {
+    response = await fetch('/api/weekrapport', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ context }),
+    })
+  } catch {
+    throw new CoachError('Geen verbinding. De cijfers hieronder kloppen gewoon.', 'offline')
+  }
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as { message?: string; error?: string }
+    throw new CoachError(body.message ?? 'Het rapport kon niet gemaakt worden.', body.error ?? 'onbekend')
+  }
+
+  const body = (await response.json()) as { text?: string }
+  return body.text ?? ''
+}
