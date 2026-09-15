@@ -108,13 +108,13 @@ export default function NutritionScreen() {
         <SectionTitle title="Vandaag loggen" subtitle="Eiwit exact, de rest op gevoel. Meer hoeft niet." right={<UtensilsCrossed className="size-4 text-ink-3" />} />
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Eiwit" hint={`Doel: ${plan.proteinMinG} tot ${plan.proteinTargetG} gram`}>
-            <NumberInput value={protein} onChange={setProtein} suffix="g" placeholder="150" />
+            <NumberInput value={protein} onChange={setProtein} suffix="g" step={5} min={0} placeholder="150" />
           </Field>
           <Field label="Maaltijden" hint={highRisk ? 'Dit is een ondergrens, geen richtlijn.' : undefined}>
             <NumberInput value={meals} onChange={setMeals} min={0} max={8} />
           </Field>
           <Field label="Gewicht" hint="Ochtend, na toiletbezoek, voor het eten. Eén keer.">
-            <NumberInput value={weight} onChange={setWeight} suffix="kg" />
+            <NumberInput value={weight} onChange={setWeight} suffix="kg" step={0.5} min={0} />
           </Field>
           <Field label={`Energie: ${energy}/5`}>
             <ScalePicker value={energy} min={1} max={5} onChange={(v) => setEnergy(v as Scale5)} labels={['leeg', 'vol']} />

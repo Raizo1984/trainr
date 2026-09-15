@@ -238,10 +238,10 @@ function BasisStep({ intake, patch }: StepProps) {
           <TextInput value={intake.name} onChange={(e) => patch((d) => { d.name = e.target.value })} placeholder="Je voornaam" />
         </Field>
         <Field label="Geboortejaar" required>
-          <NumberInput value={intake.birthYear} onChange={(v) => patch((d) => { d.birthYear = v })} placeholder="1983" />
+          <NumberInput value={intake.birthYear} onChange={(v) => patch((d) => { d.birthYear = v })} min={1900} max={new Date().getFullYear()} placeholder="1983" />
         </Field>
         <Field label="Lengte" hint="Gebruikt voor context bij metingen, niet voor een BMI-oordeel.">
-          <NumberInput value={intake.heightCm} onChange={(v) => patch((d) => { d.heightCm = v })} suffix="cm" placeholder="182" />
+          <NumberInput value={intake.heightCm} onChange={(v) => patch((d) => { d.heightCm = v })} min={100} max={250} suffix="cm" placeholder="182" />
         </Field>
       </div>
       <SourceNote>Sectie 2.1, verplichte intake-items.</SourceNote>
@@ -351,7 +351,7 @@ function TrainingStep({ intake, patch }: StepProps) {
               <NumberInput value={intake.training.sessionsPerWeek} onChange={(v) => patch((d) => { d.training.sessionsPerWeek = v ?? 3 })} min={1} max={7} suffix="x/week" />
             </Field>
             <Field label="Haalbare sessieduur">
-              <NumberInput value={intake.training.sessionMinutes} onChange={(v) => patch((d) => { d.training.sessionMinutes = v ?? 60 })} min={20} max={150} suffix="min" />
+              <NumberInput value={intake.training.sessionMinutes} onChange={(v) => patch((d) => { d.training.sessionMinutes = v ?? 60 })} min={20} max={150} step={5} suffix="min" />
             </Field>
           </div>
         </div>
@@ -478,13 +478,13 @@ function NutritionStep({ intake, patch }: StepProps) {
         <div className="grid gap-4">
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Huidig gewicht" required>
-              <NumberInput value={n.weightCurrentKg} onChange={(v) => patch((d) => { d.nutrition.weightCurrentKg = v })} suffix="kg" />
+              <NumberInput value={n.weightCurrentKg} onChange={(v) => patch((d) => { d.nutrition.weightCurrentKg = v })} step={0.5} suffix="kg" />
             </Field>
             <Field label="Laagste ooit">
-              <NumberInput value={n.weightLowestKg} onChange={(v) => patch((d) => { d.nutrition.weightLowestKg = v })} suffix="kg" />
+              <NumberInput value={n.weightLowestKg} onChange={(v) => patch((d) => { d.nutrition.weightLowestKg = v })} step={0.5} suffix="kg" />
             </Field>
             <Field label="Hoogste ooit">
-              <NumberInput value={n.weightHighestKg} onChange={(v) => patch((d) => { d.nutrition.weightHighestKg = v })} suffix="kg" />
+              <NumberInput value={n.weightHighestKg} onChange={(v) => patch((d) => { d.nutrition.weightHighestKg = v })} step={0.5} suffix="kg" />
             </Field>
           </div>
 
@@ -635,7 +635,7 @@ function LifestyleStep({ intake, patch }: StepProps) {
       <div className="grid gap-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Uren slaap per nacht">
-            <NumberInput value={l.sleepHours} onChange={(v) => patch((d) => { d.lifestyle.sleepHours = v ?? 7 })} suffix="uur" min={3} max={12} />
+            <NumberInput value={l.sleepHours} onChange={(v) => patch((d) => { d.lifestyle.sleepHours = v ?? 7 })} suffix="uur" min={3} max={12} step={0.5} />
           </Field>
           <Field label={`Slaapkwaliteit: ${l.sleepQuality}/5`}>
             <ScalePicker value={l.sleepQuality} min={1} max={5} onChange={(v) => patch((d) => { d.lifestyle.sleepQuality = v as typeof l.sleepQuality })} labels={['slecht', 'uitstekend']} />

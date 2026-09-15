@@ -30,7 +30,8 @@
     "e2e:concept": "node e2e/concept.mjs",
     "e2e:herstel": "node e2e/herstel.mjs",
     "e2e:welkom": "node e2e/welkom.mjs",
-    "e2e:sessie": "node e2e/sessie.mjs"
+    "e2e:sessie": "node e2e/sessie.mjs",
+    "e2e:getalveld": "node e2e/getalveld.mjs"
   },
   "repository": {
     "type": "git",

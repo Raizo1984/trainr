@@ -255,6 +255,49 @@ h1, h2, h3, h4 {
   border-color: var(--brand-2);
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand-2) 22%, transparent);
 }
+/*
+  Een getalveld met knoppen erin. Zelfde omlijsting als .input, maar de
+  binnenkant vult zichzelf: het invoerveld, de eenheid en de twee knoppen. De
+  focusring hoort om het geheel, niet om het kale invoerveld.
+*/
+.input-groep {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  color: var(--text-primary);
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.input-groep:hover {
+  border-color: var(--border-strong);
+}
+.input-groep:focus-within {
+  border-color: var(--brand-2);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand-2) 22%, transparent);
+}
+.input-groep input {
+  /*
+    Zonder een expliciete breedte eist een tekstveld ruimte voor twintig
+    tekens, ook als het mag krimpen. In een kolom van 358 px duwt dat samen met
+    de eenheid en de twee knoppen de hele kaart uit beeld. De breedte komt van
+    flex-grow, niet van de inhoud.
+  */
+  width: 0;
+  min-width: 0;
+  flex: 1 1 0;
+  background: transparent;
+  border: 0;
+  outline: none;
+  padding: 0.6rem 0.2rem 0.6rem 0.8rem;
+  color: inherit;
+  font: inherit;
+}
+.input-groep input::placeholder {
+  color: var(--text-muted);
+}
+
 textarea.input {
   resize: vertical;
   min-height: 4.5rem;

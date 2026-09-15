@@ -35,6 +35,7 @@ npm run e2e:speech   # spreekt een set in via een nepherkenner
 npm run e2e:complaint # meldt een klacht en controleert het voorstel
 npm run e2e:report   # weekrapport, inclusief een verzonnen getal
 npm run e2e:wger     # het ophaalscript tegen een nep-wger
+npm run e2e:getalveld # getalvelden op een telefoonscherm
 ```
 
 De accounttests vragen een lege database:

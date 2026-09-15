@@ -4,7 +4,9 @@
  */
 
 import { motion } from 'motion/react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import type { ReactNode, ButtonHTMLAttributes, InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react'
+import { Minus, Plus } from 'lucide-react'
 
 export type Tone = 'good' | 'warn' | 'serious' | 'neutral' | 'brand'
 
@@ -106,6 +108,16 @@ export function Button({ variant = 'quiet', size = 'md', icon, children, classNa
 
 /* ---------------------------------------------------------------- */
 
+/**
+ * Het label van het veld waar je in zit.
+ *
+ * Knoppen binnen een veld hebben een naam nodig die zegt wat ze doen, en
+ * "omhoog" alleen is die naam niet: op een scherm met vier getalvelden staan
+ * er dan vier knoppen met dezelfde naam. Het label staat al in Field, dus dat
+ * geven we door in plaats van het op elke aanroep te herhalen.
+ */
+const VeldLabel = createContext<string>('')
+
 export function Field({
   label,
   hint,
@@ -123,7 +135,7 @@ export function Field({
         {label}
         {required && <span style={{ color: 'var(--status-serious)' }}>*</span>}
       </span>
-      {children}
+      <VeldLabel.Provider value={label}>{children}</VeldLabel.Provider>
       {hint && <span className="mt-1.5 block text-[12px] leading-relaxed text-ink-3">{hint}</span>}
     </label>
   )
@@ -141,33 +153,157 @@ export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
   return <select {...props} className={cx('input', props.className)} />
 }
 
+/**
+ * Een getalveld dat je ook leeg mag maken.
+ *
+ * Twee dingen gingen hier eerder mis, en allebei zaten ze het aanpassen van een
+ * ingevuld getal in de weg.
+ *
+ * Het veld hield zijn eigen tekst niet vast. Bij elke toetsaanslag ging de
+ * waarde naar boven, en waar de aanroeper een standaardwaarde teruggaf bij leeg
+ * (`v ?? 3`) kwam die meteen weer terug: je wiste de 3, kreeg hem terug, typte
+ * 5, en er stond 35. Nu houdt het veld vast wat je typt zolang je erin zit, en
+ * pas als je eruit gaat wordt er afgerond, begrensd en zo nodig teruggevallen
+ * op wat de aanroeper wil.
+ *
+ * En de pijltjes van een `type="number"` bestaan op een telefoon niet. Die
+ * stonden er dus alleen op een desktop, terwijl je het veld juist in de
+ * sportschool gebruikt. Nu staan er twee echte knoppen in, altijd, groot genoeg
+ * voor een duim.
+ */
 export function NumberInput({
   value,
   onChange,
   suffix,
+  min,
+  max,
+  step = 1,
   ...rest
-}: Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> & {
+}: Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'min' | 'max' | 'step'> & {
   value: number | null
   onChange: (value: number | null) => void
   suffix?: string
+  min?: number
+  max?: number
+  step?: number
 }) {
+  const label = useContext(VeldLabel)
+  const veld = useRef<HTMLInputElement>(null)
+  const [tekst, setTekst] = useState(() => (value == null ? '' : String(value)))
+  const [bezig, setBezig] = useState(false)
+
+  // Zolang je in het veld zit is jouw tekst de waarheid, ook als die tekst
+  // even leeg of onaf is. Daarbuiten volgt het veld de waarde van buiten.
+  useEffect(() => {
+    if (bezig) return
+    setTekst(value == null ? '' : String(value))
+  }, [value, bezig])
+
+  const begrens = (n: number) => {
+    let v = n
+    if (typeof min === 'number' && v < min) v = min
+    if (typeof max === 'number' && v > max) v = max
+    // Halve stappen leveren anders 52.500000000000004 op.
+    return Math.round(v * 1000) / 1000
+  }
+
+  const stap = (richting: 1 | -1) => {
+    const vanaf = lees(tekst) ?? value ?? (typeof min === 'number' ? min : 0)
+    const nieuw = begrens(vanaf + richting * step)
+    setTekst(String(nieuw))
+    onChange(nieuw)
+  }
+
+  const knop = 'grid size-11 shrink-0 place-items-center rounded-lg text-ink-2 transition-colors hover:text-ink active:scale-95 disabled:opacity-30'
+  const opGrens = (richting: 1 | -1) => {
+    const huidig = lees(tekst) ?? value
+    if (huidig == null) return false
+    return richting === -1 ? typeof min === 'number' && huidig <= min : typeof max === 'number' && huidig >= max
+  }
+
   return (
-    <div className="relative">
+    <div className="input-groep">
       <input
         {...rest}
-        type="number"
+        ref={veld}
+        type="text"
         inputMode="decimal"
-        className="input num pr-12"
-        value={value ?? ''}
-        onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
+        autoComplete="off"
+        className="num"
+        value={tekst}
+        onFocus={() => setBezig(true)}
+        onChange={(e) => {
+          const schoon = zuiver(e.target.value)
+          // Een geweigerd teken verandert de staat niet, dus React tekent niets
+          // opnieuw en blijft die letter in het veld staan. Daarom zetten we de
+          // waarde hier zelf terug.
+          if (schoon !== e.target.value && veld.current) veld.current.value = schoon
+          if (schoon === tekst) return
+          setTekst(schoon)
+          onChange(lees(schoon))
+        }}
+        onBlur={() => {
+          setBezig(false)
+          const gelezen = lees(tekst)
+          if (gelezen == null) {
+            // Leeg laten mag. Wat er dan hoort te staan bepaalt de aanroeper,
+            // en dat komt via `value` vanzelf weer terug in beeld.
+            onChange(null)
+            return
+          }
+          const binnen = begrens(gelezen)
+          setTekst(String(binnen))
+          if (binnen !== value) onChange(binnen)
+        }}
       />
-      {suffix && (
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-ink-3">
-          {suffix}
-        </span>
-      )}
+      {suffix && <span className="shrink-0 pr-1 text-[12px] text-ink-3">{suffix}</span>}
+      <span className="flex shrink-0 items-center pr-1">
+        <button
+          type="button"
+          className={knop}
+          onClick={() => stap(-1)}
+          disabled={opGrens(-1)}
+          aria-label={label ? `${label} omlaag` : 'Omlaag'}
+        >
+          <Minus className="size-3.5" />
+        </button>
+        <button
+          type="button"
+          className={knop}
+          onClick={() => stap(1)}
+          disabled={opGrens(1)}
+          aria-label={label ? `${label} omhoog` : 'Omhoog'}
+        >
+          <Plus className="size-3.5" />
+        </button>
+      </span>
     </div>
   )
+}
+
+/**
+ * Alleen cijfers, hoogstens één scheidingsteken en een minteken vooraan.
+ *
+ * Wat er halverwege het typen staat mag onaf zijn: leeg, "-", "1," — anders
+ * kun je een getal niet aanpassen zonder het eerst goed te maken.
+ */
+function zuiver(tekst: string): string {
+  let rest = tekst.replace(/[^0-9.,-]/g, '')
+  const teken = rest.startsWith('-') ? '-' : ''
+  rest = rest.replace(/-/g, '')
+  const scheiding = rest.search(/[.,]/)
+  if (scheiding !== -1) {
+    rest = rest.slice(0, scheiding + 1) + rest.slice(scheiding + 1).replace(/[.,]/g, '')
+  }
+  return teken + rest
+}
+
+/** Wat er in het veld staat als getal, of null als het (nog) geen getal is. */
+function lees(tekst: string): number | null {
+  const schoon = tekst.replace(',', '.').trim()
+  if (schoon === '' || schoon === '-' || schoon === '.' || schoon === '-.') return null
+  const getal = Number(schoon)
+  return Number.isFinite(getal) ? getal : null
 }
 
 /** Keuzeknoppen. Duidelijker dan een dropdown bij weinig opties. */

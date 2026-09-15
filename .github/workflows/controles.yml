@@ -119,6 +119,9 @@ jobs:
       - name: Sessiescherm en rustklok
         run: npm run e2e:sessie
 
+      - name: Getalvelden op een telefoon
+        run: npm run e2e:getalveld
+
       - name: Set inspreken
         run: npm run e2e:speech
 

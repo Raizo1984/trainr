@@ -46,7 +46,7 @@ async function fillIntake(p, { redFlag = false, extremeFood = false } = {}) {
   await p.getByRole('button', { name: /^Verder/ }).click()   // klachten
   await p.getByRole('button', { name: /^Verder/ }).click()   // voeding
   await p.getByRole('button', { name: 'kg' }).first().waitFor({ state: 'attached' }).catch(() => {})
-  await p.locator('input[type=number]').first().fill('84')
+  await p.locator('.input-groep input').first().fill('84')
   if (extremeFood) await p.getByRole('button', { name: /crashdiëten, vasten of intermittent fasting/ }).click()
   await p.getByRole('button', { name: /^Verder/ }).click()   // doelen
   await p.getByPlaceholder(/Tien strakke pull-ups/).fill('Tien pull-ups en pijnvrij traplopen')
