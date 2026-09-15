@@ -5,18 +5,22 @@
  * afbeeldingen vooraf ophalen maakt precies de winst ongedaan die het eerste
  * scherm licht houdt.
  *
- * Is er geen bevestigd beeld, dan staat er niets. De aanwijzing in tekst blijft
- * dan het enige, en dat is beter dan een plaatje van een andere oefening.
+ * Een nagekeken foto gaat voor: die laat de echte oefening zien. Is die er
+ * niet, of laadt hij niet, dan tekenen we de beweging zelf. Wat er nooit komt
+ * is een foto van een andere oefening: dan leert iemand een beweging aan die
+ * hij niet moest doen.
  */
 
 import { useState } from 'react'
 import { bronvermelding, mediaVoorStap } from '@/domain/exerciseMedia'
+import type { MovementPattern } from '@/domain/types'
+import { Poppetje } from '@/ui/Poppetje'
 
-export function ExerciseImage({ stepId }: { stepId: string }) {
+export function ExerciseImage({ stepId, pattern }: { stepId: string; pattern: MovementPattern }) {
   const media = mediaVoorStap(stepId)
   const [mislukt, setMislukt] = useState(false)
 
-  if (!media || mislukt) return null
+  if (!media || mislukt) return <Poppetje pattern={pattern} />
 
   return (
     <figure className="mt-3 overflow-hidden rounded-xl border" style={{ borderColor: 'var(--border-subtle)' }}>

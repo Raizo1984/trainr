@@ -200,11 +200,27 @@ naast je werkelijke verwerking legt. Dit is code, geen juridisch advies.
 
 ## Beeld bij een oefening
 
-De afbeeldingen komen uit [wger](https://github.com/wger-project/wger), een
+Standaard tekent de app de beweging zelf. Per bewegingspatroon staan er in
+`src/domain/tekeningen.ts` een of twee standen als coördinaten, en `Poppetje`
+zet daar lijnen van. Dat scheelt drie afhankelijkheden: geen licentie om na te
+leven, geen koppeling die een mens moet nakijken, en geen server buiten ons
+bereik die het beeld moet leveren. Het werkt dus ook offline, en het blijft
+werken als iemand anders zijn database opschoont.
+
+De tekeningen zijn met opzet schematisch. Ze laten de richting van de beweging
+zien, en meer beloven ze niet: de techniek staat in de regel en de cue ernaast,
+en die zijn nagekeken. Isolatie, skill en conditie krijgen geen tekening, want
+daar zit te veel verschillends onder om met één poppetje te vangen, en een
+tekening die niet klopt is erger dan geen tekening.
+
+### Een foto gaat voor, als die is nagekeken
+
+Is er voor een trede een bevestigde foto, dan komt die in plaats van de
+tekening. Die foto's komen uit [wger](https://github.com/wger-project/wger), een
 vrije oefeningendatabank. `npm run wger` zoekt per trede een oefening, haalt het
 hoofdbeeld op en zet het in `public/exercises/`.
 
-Twee dingen bepalen hoe dit werkt.
+Twee dingen bepalen hoe dat werkt.
 
 **Licentie.** wger staat onder CC-BY-SA, maar hun documentatie zegt dat losse
 oefeningen een eigen licentie kunnen hebben. Elk beeld draagt daarom zijn

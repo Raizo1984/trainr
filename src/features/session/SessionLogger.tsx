@@ -626,22 +626,26 @@ function ExerciseCard({
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
           >
             <div className="space-y-3 px-5 pb-5">
-              <div className="card-quiet flex gap-2.5 px-3.5 py-3">
-                <Info className="mt-0.5 size-4 shrink-0 text-ink-3" />
-                <div className="min-w-0 text-[12.5px] leading-relaxed text-ink-2">
-                  <p><span className="font-semibold text-ink">Regel:</span> {ladder.rule}</p>
-                  <p className="mt-1"><span className="font-semibold text-ink">Cue:</span> {step.cue}</p>
-                  {prescription.decision && (
-                    <p className="mt-1.5 border-t border-line pt-1.5">
-                      <span className="font-semibold text-ink">Vanuit vorige sessie:</span> {prescription.decision.reason}
-                    </p>
-                  )}
-                  {prescription.note && !ladder.rule.startsWith(prescription.note) && (
-                    <p className="mt-1.5 italic">{prescription.note}</p>
-                  )}
+              <div className="card-quiet px-3.5 py-3">
+                <div className="flex gap-2.5">
+                  <Info className="mt-0.5 size-4 shrink-0 text-ink-3" />
+                  <div className="min-w-0 text-[12.5px] leading-relaxed text-ink-2">
+                    <p><span className="font-semibold text-ink">Regel:</span> {ladder.rule}</p>
+                    <p className="mt-1"><span className="font-semibold text-ink">Cue:</span> {step.cue}</p>
+                    {prescription.decision && (
+                      <p className="mt-1.5 border-t border-line pt-1.5">
+                        <span className="font-semibold text-ink">Vanuit vorige sessie:</span> {prescription.decision.reason}
+                      </p>
+                    )}
+                    {prescription.note && !ladder.rule.startsWith(prescription.note) && (
+                      <p className="mt-1.5 italic">{prescription.note}</p>
+                    )}
+                  </div>
                 </div>
 
-                <ExerciseImage stepId={prescription.stepId} />
+                {/* Het beeld op volle breedte: in een smalle kolom is een
+                    poppetje van honderd bij honderd niet meer te lezen. */}
+                <ExerciseImage stepId={prescription.stepId} pattern={ladder.pattern} />
               </div>
 
               {sets.map((set, i) => (

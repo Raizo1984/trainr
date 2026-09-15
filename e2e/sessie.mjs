@@ -59,6 +59,17 @@ try {
   await p.waitForTimeout(700)
   ok(/Oefening 1 van \d+/.test((await p.textContent('body')) ?? ''), 'en weer terug')
 
+  /* ---- Tekening bij de oefening ---- */
+  // Geen wger, geen netwerk: het poppetje zit in de bundel en hoort er altijd
+  // te staan bij een oefening met een bewegingspatroon dat we tekenen.
+  const standen = p.locator('figure svg[role="img"]')
+  ok((await standen.count()) >= 2, 'de oefening laat twee standen zien')
+  ok(
+    /Start|Bij je borst|Hangend|Armen gestrekt|Bij je schouders/.test((await p.textContent('body')) ?? ''),
+    'de standen hebben een naam',
+  )
+  await p.screenshot({ path: 'e2e/sessie-tekening.png' })
+
   /* ---- Rustklok ---- */
   await p.getByRole('button', { name: /Set \d+ toevoegen/ }).first().click()
   await p.waitForTimeout(900)
