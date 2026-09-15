@@ -38,10 +38,35 @@ lijkt de coach kapot terwijl hij simpelweg niet draait.
 | `OPENAI_API_KEY` | voor de coach | Zonder deze sleutel werkt alles behalve de gesprekscoach |
 | `OPENAI_MODEL` | optioneel | Welk model de coach gebruikt. Standaard `gpt-4o`. Zie `/api/coach/models` voor wat jouw sleutel mag gebruiken |
 | `PORT` | optioneel | Standaard 5000 op Replit |
+| `DATABASE_URL` | voor accounts | Zonder database werkt de app gewoon, maar blijven gegevens op het toestel |
+| `DATABASE_SSL` | optioneel | Zet op `uit` bij een database zonder TLS, bijvoorbeeld lokaal |
 
 De sleutel hoort uitsluitend in de Secrets, nooit in de code of in de browser.
 Alles wat de browser kent kan iedere bezoeker met de ontwikkelaarsconsole
 uitlezen.
+
+## Database voor accounts
+
+Voeg in Replit een PostgreSQL-database toe. Replit zet `DATABASE_URL` dan zelf
+in de omgeving. Bij de eerste start werkt de app het schema bij en zegt in het
+logboek welke stappen er gedraaid zijn.
+
+Twee dingen om te weten.
+
+Een publicatie die meeschaalt heeft geen vaste schijf, dus een databasebestand
+naast de app verdwijnt bij elke nieuwe publicatie. Daarom een echte database en
+geen bestand.
+
+Publicaties hebben hun eigen Secrets, los van je werkomgeving. Zet
+`DATABASE_URL` en `OPENAI_API_KEY` dus ook daar neer, anders draait de
+publicatie wel maar zonder accounts en zonder coach.
+
+**Let op wat je hier opslaat.** Zodra accounts aanstaan, staan er
+gezondheidsgegevens op die server: pijnklachten, blessures, lichaamsmaten en
+eetgedrag. Dat is onder artikel 9 AVG een bijzondere categorie. Er hoort dan
+een verwerkersovereenkomst met je hoster te liggen, en een privacyverklaring
+die klopt met wat de app werkelijk doet. De tekst in de app staat in
+`src/features/account/privacy.ts`.
 
 ## Controles
 

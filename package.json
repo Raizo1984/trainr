@@ -22,7 +22,10 @@
     "e2e:complaint": "node e2e/complaint.mjs",
     "e2e:report": "node e2e/report.mjs",
     "wger": "node scripts/wger.mjs",
-    "e2e:wger": "node e2e/wger.mjs"
+    "e2e:wger": "node e2e/wger.mjs",
+    "e2e:accounts": "node e2e/accounts.mjs",
+    "e2e:account-http": "node e2e/account-http.mjs",
+    "e2e:account-ui": "node e2e/account-ui.mjs"
   },
   "repository": {
     "type": "git",
@@ -36,8 +39,10 @@
   "homepage": "https://github.com/Raizo1984/trainr#readme",
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.6",
     "@types/node": "^26.5.1",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
@@ -48,10 +53,12 @@
     "vitest": "^5.0.0"
   },
   "dependencies": {
+    "cookie-parser": "^1.4.7",
     "express": "^5.2.1",
     "lucide-react": "^1.46.0",
     "motion": "^13.2.0",
     "openai": "^7.15.0",
+    "pg": "^8.23.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "recharts": "^3.10.1",

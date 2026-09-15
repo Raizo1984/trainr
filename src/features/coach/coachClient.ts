@@ -42,9 +42,11 @@ export interface CoachStatus {
   model: string
 }
 
+import { apiFetch } from '@/api'
+
 export async function coachStatus(): Promise<CoachStatus> {
   try {
-    const response = await fetch('/api/coach/status')
+    const response = await apiFetch('/api/coach/status')
     if (!response.ok) return { available: false, model: '' }
     return (await response.json()) as CoachStatus
   } catch {
@@ -56,9 +58,8 @@ export async function coachStatus(): Promise<CoachStatus> {
 export async function askCoach(messages: CoachMessage[], context: CoachContext): Promise<CoachReply> {
   let response: Response
   try {
-    response = await fetch('/api/coach', {
+    response = await apiFetch('/api/coach', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages, context }),
     })
   } catch {
@@ -84,9 +85,8 @@ export async function askCoach(messages: CoachMessage[], context: CoachContext):
 export async function fetchWeekReport(context: CoachContext): Promise<string> {
   let response: Response
   try {
-    response = await fetch('/api/weekrapport', {
+    response = await apiFetch('/api/weekrapport', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ context }),
     })
   } catch {

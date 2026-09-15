@@ -3,17 +3,41 @@
  * een medische pauze. Exporteren en verwijderen kan altijd, zonder drempels.
  */
 
-import { useState } from 'react'
-import { Database, Download, Play, RotateCcw, ShieldCheck, Trash2 } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { Database, Download, Play, RotateCcw, ShieldCheck, Trash2, Upload } from 'lucide-react'
 import { Badge, Button, Card, SectionTitle, SourceNote, TextArea } from '@/ui/primitives'
 import { useAppStore } from '@/store/useAppStore'
 import { useCurrentPhase } from '@/store/selectors'
+import { AccountCard } from '@/features/account/AccountCard'
 
 export default function SettingsScreen() {
   const state = useAppStore()
   const phase = useCurrentPhase()
   const [confirmReset, setConfirmReset] = useState(false)
   const [clearance, setClearance] = useState('')
+  const bestandRef = useRef<HTMLInputElement>(null)
+  const [terugzetMelding, setTerugzetMelding] = useState<string | null>(null)
+
+  /*
+   * Een back-up terugzetten overschrijft alles wat er nu staat. Daarom eerst
+   * kijken of het bestand ergens op lijkt: een half ingelezen log is erger dan
+   * een geweigerd bestand, want je merkt het pas weken later.
+   */
+  const terugzetten = async (bestand: File) => {
+    setTerugzetMelding(null)
+    try {
+      const tekst = await bestand.text()
+      const data = JSON.parse(tekst) as Record<string, unknown>
+      if (!state.zetMomentopname(data)) {
+        setTerugzetMelding('Dit bestand is geen export van Trainr, of het is beschadigd. Er is niets gewijzigd.')
+        return
+      }
+      const aantal = Array.isArray(data.sessions) ? data.sessions.length : 0
+      setTerugzetMelding(`Teruggezet: ${aantal} ${aantal === 1 ? 'sessie' : 'sessies'}.`)
+    } catch {
+      setTerugzetMelding('Dit bestand is niet te lezen. Er is niets gewijzigd.')
+    }
+  }
 
   const download = () => {
     const blob = new Blob([state.exportJson()], { type: 'application/json' })
@@ -31,6 +55,8 @@ export default function SettingsScreen() {
         <h1 className="text-[26px] font-bold tracking-tight">Instellingen</h1>
         <p className="mt-0.5 text-[13.5px] text-ink-3">Je data, je apparaat, je keuze.</p>
       </header>
+
+      <AccountCard />
 
       {state.medicalHold?.active && (
         <Card>
@@ -77,13 +103,27 @@ export default function SettingsScreen() {
       <Card delay={0.1}>
         <SectionTitle
           title="Je data"
-          subtitle="Alles staat lokaal in je browser. Er gaat niets naar een server, en er wordt niets verkocht."
+          subtitle="Zonder account staat alles op dit toestel. Met een account staat er ook een kopie op de server, zodat je op meer apparaten kunt. Er wordt niets verkocht."
           right={<Database className="size-4 text-ink-3" />}
         />
         <div className="flex flex-wrap gap-2">
           <Button onClick={download} icon={<Download className="size-4" />}>
             Exporteren als JSON
           </Button>
+          <Button onClick={() => bestandRef.current?.click()} icon={<Upload className="size-4" />}>
+            Back-up terugzetten
+          </Button>
+          <input
+            ref={bestandRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(e) => {
+              const bestand = e.target.files?.[0]
+              e.target.value = ''
+              if (bestand) void terugzetten(bestand)
+            }}
+          />
           <Button onClick={() => state.loadDemo()} icon={<RotateCcw className="size-4" />}>
             Demodata laden
           </Button>
@@ -104,8 +144,13 @@ export default function SettingsScreen() {
             </Button>
           )}
         </div>
+        {terugzetMelding && (
+          <p className="mt-3 text-[12.5px] leading-snug text-ink-2" role="status">
+            {terugzetMelding}
+          </p>
+        )}
         <ul className="mt-4 space-y-1.5 text-[13px] leading-relaxed text-ink-2">
-          <li>Je kunt op elk moment exporteren of verwijderen.</li>
+          <li>Je kunt op elk moment exporteren, terugzetten of verwijderen.</li>
           <li>Er is geen profilering en geen doorverkoop van gegevens.</li>
           <li>Gezondheidsdata blijft beperkt tot wat de coaching nodig heeft.</li>
         </ul>

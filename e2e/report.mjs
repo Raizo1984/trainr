@@ -8,7 +8,7 @@
  *   node e2e/report.mjs
  */
 
-import { spawn } from 'node:child_process'
+import { startServer, stopServer, wachtOpServer } from './serverproces.mjs'
 import http from 'node:http'
 import { chromium } from 'playwright'
 
@@ -38,15 +38,12 @@ const stub = http.createServer((req, res) => {
 })
 await new Promise((r) => stub.listen(STUB_PORT, r))
 
-const server = spawn('npx', ['tsx', 'server/index.ts'], {
-  env: { ...process.env, PORT: String(APP_PORT), OPENAI_API_KEY: 'sk-test', OPENAI_BASE_URL: `http://localhost:${STUB_PORT}` },
-  stdio: ['ignore', 'pipe', 'pipe'],
+const server = startServer({
+  PORT: String(APP_PORT),
+  OPENAI_API_KEY: 'sk-test',
+  OPENAI_BASE_URL: `http://localhost:${STUB_PORT}`,
 })
-server.stderr.on('data', (d) => process.stderr.write(`[server] ${d}`))
-for (let i = 0; i < 40; i++) {
-  try { if ((await fetch(`http://localhost:${APP_PORT}/api/coach/status`)).ok) break } catch { /* nog niet op */ }
-  await new Promise((r) => setTimeout(r, 250))
-}
+await wachtOpServer(`http://localhost:${APP_PORT}/api/coach/status`)
 
 const BASE = `http://localhost:${APP_PORT}`
 const b = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {})
@@ -88,7 +85,7 @@ try {
   await p.screenshot({ path: 'e2e/report-geweigerd.png' })
 } finally {
   await b.close()
-  server.kill()
+  await stopServer(server)
   stub.close()
 }
 

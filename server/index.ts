@@ -21,13 +21,44 @@ import { ADJUSTMENT_TOOL } from './tools.ts'
 import { parseCoachResponse } from './parse.ts'
 import { COMPLAINT_SYSTEM, COMPLAINT_TOOL, COMPLAINT_TOOL_NAME, parseComplaintArguments } from './complaint.ts'
 import { REPORT_SYSTEM } from './report.ts'
+import cookieParser from 'cookie-parser'
+import { accountRoutes, startOpruimen } from './routes-account.ts'
+import { beschikbaar as databaseBeschikbaar, migreer } from './db.ts'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
 
 // Het profiel plus de recente historie is ruim, maar niet onbeperkt: zonder
 // grens kan iemand de server als generiek doorgeefluik naar OpenAI gebruiken.
-app.use(express.json({ limit: '1mb' }))
+/*
+ * De grens op de body staat er om te voorkomen dat iemand de server als
+ * generiek doorgeefluik naar OpenAI gebruikt. Het opslaan van je eigen log is
+ * de uitzondering: vier jaar trainen is al gauw een paar megabyte, en dan zou
+ * opslaan stilletjes stuklopen bij precies de gebruiker die er het langst mee
+ * werkt. Die route zet daarom verderop zijn eigen, ruimere grens.
+ *
+ * De volgorde is hier het punt: een tweede parser op de route zelf zou nooit
+ * aan bod komen, want deze heeft de body dan al gelezen of geweigerd.
+ */
+const STAAT_PAD = '/api/account/staat'
+const gewoneJson = express.json({ limit: '1mb' })
+app.use((req, res, next) => {
+  if (req.path === STAAT_PAD) {
+    next()
+    return
+  }
+  gewoneJson(req, res, next)
+})
+app.use(cookieParser())
+
+/*
+ * Achter een publicatie staat een proxy. Zonder dit staat er bij elk verzoek
+ * hetzelfde adres, en dan begrenst de teller op inlogpogingen iedereen samen
+ * in plaats van per bezoeker.
+ */
+app.set('trust proxy', 1)
+
+accountRoutes(app)
 
 /**
  * Poort. Replit zet `PORT` niet altijd, maar wijst in `.replit` wel poort 5000
@@ -320,6 +351,25 @@ app.use(
   }),
 )
 app.get(/.*/, (_req, res) => res.sendFile(path.join(dist, 'index.html')))
+
+/*
+ * Het schema bijwerken voordat er verzoeken binnenkomen. Faalt dat, dan start
+ * de app wel, maar zonder accounts: een app die helemaal niet opkomt is erger
+ * dan een app waarin je even niet kunt inloggen.
+ */
+if (databaseBeschikbaar()) {
+  try {
+    const gedraaid = await migreer()
+    console.log(
+      gedraaid.length > 0 ? `Database bijgewerkt: ${gedraaid.join(', ')}` : 'Database is bij.',
+    )
+    startOpruimen()
+  } catch (error) {
+    console.error('Database niet bereikbaar, accounts staan uit:', error)
+  }
+} else {
+  console.log('Geen DATABASE_URL. Accounts staan uit; gegevens blijven op het toestel.')
+}
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Trainr draait op poort ${PORT}, model ${MODEL}`)

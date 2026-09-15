@@ -9,7 +9,7 @@
  *   node e2e/coach-integration.mjs
  */
 
-import { spawn } from 'node:child_process'
+import { startServer, stopServer, wachtOpServer } from './serverproces.mjs'
 import http from 'node:http'
 
 const STUB_PORT = 4399
@@ -67,33 +67,19 @@ const stub = http.createServer((req, res) => {
 })
 await new Promise((resolve) => stub.listen(STUB_PORT, resolve))
 
-const server = spawn('npx', ['tsx', 'server/index.ts'], {
-  env: {
-    ...process.env,
+const server = startServer({
     PORT: String(APP_PORT),
     OPENAI_API_KEY: 'sk-test-nepsleutel',
     OPENAI_BASE_URL: `http://localhost:${STUB_PORT}`,
     OPENAI_MODEL: 'gpt-4o-test',
-  },
-  stdio: ['ignore', 'pipe', 'pipe'],
 })
-server.stderr.on('data', (d) => process.stderr.write(`[server] ${d}`))
 
-// Wachten tot de server luistert.
-for (let i = 0; i < 40; i++) {
-  try {
-    const probe = await fetch(`http://localhost:${APP_PORT}/api/coach/status`)
-    if (probe.ok) break
-  } catch {
-    // nog niet op
-  }
-  await new Promise((r) => setTimeout(r, 250))
-}
+await wachtOpServer(`http://localhost:${APP_PORT}/api/coach/status`)
 
 async function ask(messages, context = { fase: 'Fase 2', grenzen: ['Pijn van 5 of hoger: nooit meer belasting.'] }) {
   const response = await fetch(`http://localhost:${APP_PORT}/api/coach`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-Trainr-Client': '1' },
     body: JSON.stringify({ messages, context }),
   })
   return { status: response.status, body: await response.json() }
@@ -157,7 +143,7 @@ try {
   async function meld(text, ladders = LADDERS) {
     const response = await fetch(`http://localhost:${APP_PORT}/api/klacht`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Trainr-Client': '1' },
       body: JSON.stringify({ text, ladders }),
     })
     return { status: response.status, body: await response.json() }
@@ -218,7 +204,7 @@ try {
   const zonder = await meld('mijn knie doet pijn', [])
   ok(zonder.status === 400, 'een klacht zonder oefeningen wordt geweigerd')
 } finally {
-  server.kill()
+  await stopServer(server)
   stub.close()
 }
 

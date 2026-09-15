@@ -22,6 +22,7 @@ import { validateAdjustment } from '@/domain/adapt'
 import { useValidationContext } from '@/store/selectors'
 import type { Prescription } from '@/domain/prescribe'
 import { getLadder } from '@/domain/exercises'
+import { apiFetch } from '@/api'
 import { CoachProposal } from '@/features/coach/CoachChat'
 import type { PlanAdjustment } from '@/domain/types'
 
@@ -51,9 +52,8 @@ export function ComplaintCard({ prescriptions, delay = 0 }: { prescriptions: Pre
     })
 
     try {
-      const res = await fetch('/api/klacht', {
+      const res = await apiFetch('/api/klacht', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: schoon, ladders }),
       })
       const body = await res.json()

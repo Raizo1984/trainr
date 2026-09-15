@@ -48,6 +48,44 @@ export interface AppStore extends AppState {
   loadDemo: () => void
   resetAll: () => void
   exportJson: () => string
+  /** De bewaarde velden als gewoon object, voor synchronisatie en export. */
+  momentopname: () => BewaardeStaat
+  /** Alles vervangen door een eerder gemaakte momentopname. */
+  zetMomentopname: (data: unknown) => boolean
+}
+
+/** Precies de velden die bewaard worden. Eén lijst, niet drie. */
+export type BewaardeStaat = Pick<
+  AppState,
+  | 'intake'
+  | 'risk'
+  | 'phase'
+  | 'sessions'
+  | 'measurements'
+  | 'movementAssessments'
+  | 'adjustments'
+  | 'nutritionDays'
+  | 'acknowledgedAlerts'
+  | 'medicalHold'
+>
+
+const BEWAARDE_VELDEN = [
+  'intake',
+  'risk',
+  'phase',
+  'sessions',
+  'measurements',
+  'movementAssessments',
+  'adjustments',
+  'nutritionDays',
+  'acknowledgedAlerts',
+  'medicalHold',
+] as const
+
+function pakBewaarde(state: AppState): BewaardeStaat {
+  const uit = {} as Record<string, unknown>
+  for (const veld of BEWAARDE_VELDEN) uit[veld] = state[veld]
+  return uit as BewaardeStaat
 }
 
 export const useAppStore = create<AppStore>()(
@@ -167,30 +205,34 @@ export const useAppStore = create<AppStore>()(
 
       resetAll: () => set(emptyState()),
 
-      exportJson: () => {
-        const { intake, risk, phase, sessions, measurements, movementAssessments, nutritionDays, adjustments, medicalHold } = get()
-        return JSON.stringify(
-          { exportedAt: new Date().toISOString(), intake, risk, phase, sessions, measurements, movementAssessments, nutritionDays, adjustments, medicalHold },
-          null,
-          2,
-        )
+      exportJson: () => JSON.stringify({ exportedAt: new Date().toISOString(), ...pakBewaarde(get()) }, null, 2),
+
+      momentopname: () => pakBewaarde(get()),
+
+      /*
+       * Een momentopname terugzetten, bijvoorbeeld van de server of uit een
+       * back-up. Bewust streng: er komen hier gegevens binnen die niet uit
+       * deze code hoeven te komen, en half terugzetten is erger dan weigeren.
+       */
+      zetMomentopname: (data) => {
+        if (typeof data !== 'object' || data === null) return false
+        const bron = data as Record<string, unknown>
+        if (!Array.isArray(bron.sessions) || typeof bron.intake !== 'object' || bron.intake === null) {
+          return false
+        }
+        const leeg = emptyState()
+        const nieuw = {} as Record<string, unknown>
+        for (const veld of BEWAARDE_VELDEN) {
+          nieuw[veld] = veld in bron ? bron[veld] : (leeg as unknown as Record<string, unknown>)[veld]
+        }
+        set(nieuw as Partial<AppState>)
+        return true
       },
     }),
     {
       name: 'trainr-v1',
       version: 1,
-      partialize: (state) => ({
-        intake: state.intake,
-        risk: state.risk,
-        phase: state.phase,
-        sessions: state.sessions,
-        measurements: state.measurements,
-        movementAssessments: state.movementAssessments,
-        adjustments: state.adjustments,
-        nutritionDays: state.nutritionDays,
-        acknowledgedAlerts: state.acknowledgedAlerts,
-        medicalHold: state.medicalHold,
-      }),
+      partialize: (state) => pakBewaarde(state),
     },
   ),
 )

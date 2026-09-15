@@ -37,6 +37,14 @@ npm run e2e:report   # weekrapport, inclusief een verzonnen getal
 npm run e2e:wger     # het ophaalscript tegen een nep-wger
 ```
 
+De accounttests vragen een lege database:
+
+```bash
+DATABASE_URL=postgres://... npm run e2e:accounts       # de laag eronder
+DATABASE_URL=postgres://... npm run e2e:account-http   # de eindpunten
+DATABASE_URL=postgres://... npm run e2e:account-ui     # twee toestellen in de browser
+```
+
 De tests met een eigen server (`e2e:coach`, `e2e:complaint`, `e2e:report`)
 starten elk hun eigen backend. Draai ze los van elkaar, anders botsen ze op
 dezelfde poort.
@@ -44,6 +52,66 @@ dezelfde poort.
 `e2e:coach` start een nepserver die zich voordoet als OpenAI en controleert het
 verzoek dat de backend verstuurt. Typecontrole ziet niet of een veldnaam klopt
 met wat de API verwacht; deze controle wel, en hij kost geen tokens.
+
+## Accounts en synchronisatie
+
+De app werkt zonder account. Je gegevens blijven dan op dit toestel en er komt
+niets bij ons terecht. Met een account staat er ook een kopie op de server,
+zodat je op je telefoon en je laptop hetzelfde ziet.
+
+Zonder `DATABASE_URL` start de app gewoon, maar zonder accounts. Een
+ontbrekende database mag geen kapotte app opleveren.
+
+**Wachtwoorden** gaan door scrypt uit `node:crypto`, met de parameters in de
+hash zelf zodat ze later te verhogen zijn zonder bestaande wachtwoorden
+ongeldig te maken. Geen extra pakket: bcrypt of argon2 zouden hier niets
+toevoegen behalve een compileerstap die op de ene hoster wel werkt en op de
+andere niet.
+
+**Sessies** zijn willekeurige tokens in een HttpOnly-cookie, geen JWT. Alleen
+de hash gaat de database in, dus wie de database leest kan daarmee niet
+inloggen. En een token in de database kun je intrekken; een ondertekend broodje
+dat zichzelf geldig verklaart niet.
+
+**Inloggen** kost bij een onbekend adres net zoveel tijd als bij een bestaand,
+want er wordt altijd een hash berekend. Anders is aan de snelheid te merken wie
+er een account heeft, en bij een app met gezondheidsgegevens is dat op zichzelf
+al gevoelige informatie. Na tien mislukte pogingen binnen een kwartier gaat de
+deur dicht, geteld in de database en niet in het geheugen, want een publicatie
+die meeschaalt draait meerdere kopieën.
+
+**Verzoeken van een andere website** worden geweigerd: alles wat iets wijzigt
+draagt een eigen kopregel, en die kan een formulier op een vreemde site niet
+meesturen.
+
+**Synchroniseren** houdt de lokale opslag leidend, zodat offline blijft werken.
+De server krijgt een kopie zodra dat kan. Bij een botsing wordt er niets
+stilzwijgend overschreven: twee toestellen die allebei iets hebben gelogd is
+geen randgeval maar wat er gebeurt zodra je de app op twee apparaten hebt. De
+app laat dan zien wat er aan beide kanten staat en jij kiest.
+
+## Gezondheidsgegevens en de AVG
+
+Deze app bewaart pijnklachten, blessures, lichaamsmaten en eetgedrag. Dat is
+onder artikel 9 AVG een bijzondere categorie persoonsgegevens, de zwaarste
+klasse die er is.
+
+Wat daarvan in het product zit:
+
+- Uitdrukkelijke toestemming bij het aanmaken van een account, met de versie en
+  het tijdstip erbij. Zonder toestemming wordt er geen account aangemaakt.
+- Een privacyverklaring die zegt wat er werkelijk gebeurt, in
+  `src/features/account/privacy.ts`. Verandert die tekst inhoudelijk, verander
+  dan ook `TOESTEMMING_VERSIE` in `server/accounts.ts`, zodat iedereen opnieuw
+  akkoord geeft.
+- Verwijderen is echt verwijderen, niet een vinkje. Account, sessies en
+  gegevens gaan in één transactie weg.
+- Exporteren en terugzetten van een back-up, ook zonder account.
+- Sessies verlopen na dertig dagen en worden opgeruimd.
+
+Wat hier niet in zit en wel moet gebeuren voordat anderen de app gebruiken: een
+verwerkersovereenkomst met je hoster, en een jurist die de privacyverklaring
+naast je werkelijke verwerking legt. Dit is code, geen juridisch advies.
 
 ## Beeld bij een oefening
 
