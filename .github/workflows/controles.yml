@@ -1,0 +1,160 @@
+# Elke push en elke pull request door dezelfde controles die ik met de hand
+# draai. Ze hebben in dit project meer dan twintig echte fouten gevonden,
+# waaronder in het synchroniseren. Zonder deze workflow draaien ze alleen als
+# iemand eraan denkt, en dan is het een kwestie van tijd voor er iets doorheen
+# glipt.
+#
+# Twee taken, bewust gescheiden. De snelle controle geeft binnen een minuut
+# antwoord en dekt het meeste af. De browsertests duren langer en hebben een
+# database nodig, dus die staan apart: een rood kruisje binnen een minuut is
+# meer waard dan een compleet antwoord na tien.
+
+name: Controles
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  # Een nieuwe push maakt de vorige uitvoering overbodig.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  snel:
+    name: Typecontrole, tests en budget
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # De OpenAI-SDK eist Node 22 of hoger. Hier hetzelfde als in .replit,
+          # anders vindt de CI iets anders dan de publicatie.
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecontrole app en server
+        run: npm run typecheck && npm run typecheck:server
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Bouwen
+        run: npm run build
+
+      - name: Budget eerste scherm
+        run: npm run size
+
+  browser:
+    name: Browsertests en accounts
+    runs-on: ubuntu-latest
+    # Alleen als de snelle controle groen is. Een rood kruisje binnen een
+    # minuut is meer waard dan een compleet antwoord na tien.
+    needs: snel
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: trainr_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://postgres:test@localhost:5432/trainr_test
+      # De testdatabase praat gewoon zonder TLS.
+      DATABASE_SSL: uit
+      E2E_BASE: http://localhost:3001
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Browser installeren
+        run: npx playwright install --with-deps chromium
+
+      - name: Bouwen
+        run: npm run build
+
+      - name: Server starten
+        run: |
+          npx tsx server/index.ts > server.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -sf -o /dev/null http://localhost:3001/; then
+              echo "server draait"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "server kwam niet op"
+          cat server.log
+          exit 1
+
+      - name: Doorloop van de app
+        run: npm run e2e
+
+      - name: Zonder bereik
+        run: npm run e2e:offline
+
+      - name: Lopende sessie blijft behouden
+        run: npm run e2e:concept
+
+      - name: Set inspreken
+        run: npm run e2e:speech
+
+      - name: Mobiele audit
+        run: npm run e2e:mobile
+
+      # De volgende tests starten elk hun eigen server op een eigen poort, dus
+      # die draaien los van elkaar. Tegelijk zouden ze op dezelfde poort botsen.
+      - name: Coach en klacht duiden
+        run: npm run e2e:coach
+
+      - name: Klacht melden in de app
+        run: npm run e2e:complaint
+
+      - name: Weekrapport
+        run: npm run e2e:report
+
+      - name: Oefeningsbeeld ophalen
+        run: npm run e2e:wger
+
+      - name: Accountlaag
+        run: npm run e2e:accounts
+
+      - name: Accounteindpunten
+        run: npm run e2e:account-http
+
+      - name: Accounts in de app
+        run: npm run e2e:account-ui
+
+      - name: Offline trainen en later synchroniseren
+        run: npm run e2e:offline-sync
+
+      - name: Schermafdrukken bewaren bij een fout
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: schermafdrukken
+          path: |
+            e2e/*.png
+            server.log
+          retention-days: 7
+          if-no-files-found: ignore

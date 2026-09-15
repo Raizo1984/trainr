@@ -23,7 +23,7 @@
     "e2e:report": "node e2e/report.mjs",
     "wger": "node scripts/wger.mjs",
     "e2e:wger": "node e2e/wger.mjs",
-    "e2e:accounts": "node e2e/accounts.mjs",
+    "e2e:accounts": "tsx e2e/accounts.mjs",
     "e2e:account-http": "node e2e/account-http.mjs",
     "e2e:account-ui": "node e2e/account-ui.mjs",
     "e2e:offline-sync": "node e2e/offline-sync.mjs",

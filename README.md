@@ -54,6 +54,24 @@ dezelfde poort.
 verzoek dat de backend verstuurt. Typecontrole ziet niet of een veldnaam klopt
 met wat de API verwacht; deze controle wel, en hij kost geen tokens.
 
+## Controles draaien automatisch
+
+`.github/workflows/controles.yml` draait bij elke push en elke pull request.
+Twee taken, bewust gescheiden.
+
+De snelle taak doet de typecontrole van app en server, de unit tests, de build
+en het budget. Die geeft binnen een minuut antwoord en dekt het meeste af.
+
+De browsertaak draait daarna, en alleen als de snelle groen is: de doorloop,
+offline, de lopende sessie, inspreken, de mobiele audit, de coach, klacht
+melden, het weekrapport, het wger-script en de vier accounttests tegen een
+echte PostgreSQL uit een service-container. Bij een fout worden de
+schermafdrukken en het serverlogboek bewaard, want een rode test zonder beeld
+kost een halve dag raden.
+
+Een rood kruisje binnen een minuut is meer waard dan een compleet antwoord na
+tien, vandaar die volgorde.
+
 ## Accounts en synchronisatie
 
 De app werkt zonder account. Je gegevens blijven dan op dit toestel en er komt
