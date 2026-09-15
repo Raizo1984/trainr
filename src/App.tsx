@@ -2,6 +2,7 @@ import { Suspense, useCallback, useEffect, useState, useTransition } from 'react
 import { AnimatePresence, motion } from 'motion/react'
 import {
   Activity,
+  CloudOff,
   Apple,
   Dumbbell,
   LayoutDashboard,
@@ -17,6 +18,8 @@ import { useAlerts } from '@/store/selectors'
 import { useTheme } from '@/ui/theme'
 import { cx } from '@/ui/primitives'
 import { lazyScreen } from '@/ui/lazyScreen'
+import { heeftAccount, markeerAccount, startSync, useSync } from '@/features/account/sync'
+import { status as accountStatus } from '@/features/account/accountClient'
 import Dashboard from '@/features/dashboard/Dashboard'
 
 /**
@@ -65,6 +68,67 @@ function usePrefetchScreens(active: boolean) {
   }, [active])
 }
 
+/**
+ * Synchroniseren aanzetten zodra de app opengaat.
+ *
+ * Bewust hier en niet in het instellingenscherm. Wie in de sportschool zonder
+ * bereik zijn sets logt, komt daarna niet nog even bij Instellingen langs: hij
+ * doet de app dicht. Als de synchronisatie pas op dat scherm begint, blijft die
+ * training staan tot iemand er toevallig heen navigeert.
+ */
+function useSyncBijOpstart(): void {
+  useEffect(() => {
+    let weg = false
+
+    /*
+     * Eerst op wat dit toestel zelf weet, en pas daarna op wat de server zegt.
+     * Zonder bereik kun je de server niets vragen, en juist dan moet de app al
+     * bijhouden dat wat je invoert straks verstuurd moet worden.
+     */
+    if (heeftAccount()) startSync()
+
+    void accountStatus().then((s) => {
+      if (weg) return
+      if (s.gebruiker) {
+        startSync()
+        return
+      }
+      // De server is bereikbaar en zegt dat je niet ingelogd bent. Alleen dan
+      // is de conclusie dat dit toestel geen account heeft. Staat er nog
+      // invoer klaar, dan blijft die staan; die is niets waard op de server
+      // maar alles op dit toestel.
+      if (s.accountsMogelijk && !useSync.getState().vuil) markeerAccount(false)
+    })
+
+    return () => {
+      weg = true
+    }
+  }, [])
+}
+
+/**
+ * Een stille melding wanneer er invoer klaarstaat die nog niet verstuurd is.
+ *
+ * Geen waarschuwing, want er is niets mis: je gegevens staan op je toestel en
+ * gaan vanzelf mee. Maar je moet het wel kunnen zien, anders lijkt het alsof de
+ * app je training is kwijtgeraakt.
+ */
+function SyncMelding() {
+  const stand = useSync((s) => s.stand)
+  const vuil = useSync((s) => s.vuil)
+  if (!vuil || (stand !== 'offline' && stand !== 'fout')) return null
+  return (
+    <div
+      className="mb-3 flex items-center gap-2 rounded-xl border px-3 py-2 text-[12.5px] leading-snug"
+      style={{ background: 'var(--surface-2)', borderColor: 'var(--border-subtle)', color: 'var(--ink-2)' }}
+      role="status"
+    >
+      <CloudOff className="size-4 shrink-0 text-ink-3" />
+      <span>Nog niet op de server. Je invoer staat op dit toestel en gaat mee zodra er verbinding is.</span>
+    </div>
+  )
+}
+
 /** Plaatshouder tijdens het laden van een scherm. Rustig, geen springerige layout. */
 function ScreenFallback() {
   return (
@@ -98,6 +162,7 @@ export default function App() {
   const [, startTabChange] = useTransition()
   const { theme, toggle } = useTheme()
   usePrefetchScreens(intakeDone)
+  useSyncBijOpstart()
 
   // Als overgang, niet als gewone toestandswijziging. Het nieuwe scherm wordt
   // apart ingeladen, en zonder overgang ruilt React het oude scherm meteen in
@@ -122,6 +187,7 @@ export default function App() {
 
       <main className="min-w-0 flex-1">
         <MobileHeader tab={tab} onChange={setTab} theme={theme} onToggleTheme={toggle} />
+        <SyncMelding />
         <AnimatePresence mode="wait">
           <motion.div
             key={tab}

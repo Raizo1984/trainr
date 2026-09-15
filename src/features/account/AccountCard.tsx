@@ -26,7 +26,7 @@ import {
 import { Badge, Button, Card, SectionTitle, SourceNote, cx } from '@/ui/primitives'
 import * as api from './accountClient'
 import { PRIVACY, TOESTEMMING_TEKST } from './privacy'
-import { houdServer, houdToestel, naInloggen, nuOpsturen, startSynchroniseren, stopSynchroniseren, useSync } from './sync'
+import { houdServer, houdToestel, nuOpsturen, startSync, stopSync, useSync } from './sync'
 import type { SyncStand, SyncStatus } from './sync'
 
 type Modus = 'inloggen' | 'registreren'
@@ -41,7 +41,7 @@ export function AccountCard({ delay = 0 }: { delay?: number }) {
     void api.status().then((s) => {
       if (weg) return
       setStatus(s)
-      if (s.gebruiker) void naInloggen().then(() => startSynchroniseren(useSync.getState().versie))
+      if (s.gebruiker) startSync()
     })
     return () => {
       weg = true
@@ -76,7 +76,7 @@ export function AccountCard({ delay = 0 }: { delay?: number }) {
         bezig={bezig}
         setBezig={setBezig}
         onUitgelogd={() => {
-          stopSynchroniseren()
+          stopSync({ vergeetBoekhouding: true })
           setStatus({ ...status, gebruiker: null })
         }}
         sync={sync}
@@ -109,8 +109,7 @@ function AanmeldCard({ delay, onKlaar }: { delay: number; onKlaar: (s: api.Accou
       }
       const nieuw = await api.status()
       onKlaar(nieuw)
-      await naInloggen()
-      startSynchroniseren(useSync.getState().versie)
+      startSync()
     } catch (error) {
       setFout(error instanceof Error ? error.message : 'Het lukte niet.')
     } finally {
@@ -365,7 +364,7 @@ function IngelogdCard({
             onClick={async () => {
               try {
                 await api.verwijderAccount()
-                stopSynchroniseren()
+                stopSync({ vergeetBoekhouding: true })
                 onUitgelogd()
               } catch (error) {
                 setFout(error instanceof Error ? error.message : 'Het lukte niet.')

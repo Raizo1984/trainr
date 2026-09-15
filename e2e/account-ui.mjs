@@ -113,8 +113,12 @@ try {
   ok(!/Beginnen met je intake|intakevragen/i.test(naSync) || /Vandaag/.test(naSync), 'het tweede toestel heeft de gegevens opgehaald')
   await twee.p.screenshot({ path: 'e2e/account-tweede-toestel.png' })
 
-  /* ---- Botsing ---- */
-  // Toestel 2 logt iets, toestel 1 nog niet bijgewerkt: dan botst het.
+  /* ---- Botsing ----
+   *
+   * Een botsing vraagt twee dingen tegelijk: de server is verder, én dit
+   * toestel heeft eigen wijzigingen die er nog niet zijn. Is alleen de server
+   * verder, dan hoort de app gewoon op te halen zonder iets te vragen.
+   */
   await twee.p.evaluate(async () => {
     const res = await fetch('/api/account/staat', {
       method: 'PUT',
@@ -124,9 +128,11 @@ try {
     return res.status
   })
 
-  // Toestel 1 probeert nu te schrijven met zijn oude versie.
+  // Toestel 1 wijzigt ondertussen zelf ook iets.
+  await een.p.getByRole('button', { name: 'Demodata laden' }).click()
+  await een.p.waitForTimeout(1200)
   await een.p.getByRole('button', { name: 'Nu synchroniseren' }).click()
-  await een.p.waitForTimeout(2000)
+  await een.p.waitForTimeout(2500)
   const botsing = await een.p.textContent('body')
   ok(/Twee versies van je gegevens/.test(botsing), 'een botsing wordt gemeld en niet stil overschreven')
   ok(/Houd dit toestel/.test(botsing) && /Houd de server/.test(botsing), 'en je krijgt de keuze')

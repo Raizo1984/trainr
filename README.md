@@ -43,6 +43,7 @@ De accounttests vragen een lege database:
 DATABASE_URL=postgres://... npm run e2e:accounts       # de laag eronder
 DATABASE_URL=postgres://... npm run e2e:account-http   # de eindpunten
 DATABASE_URL=postgres://... npm run e2e:account-ui     # twee toestellen in de browser
+DATABASE_URL=postgres://... npm run e2e:offline-sync   # trainen zonder bereik, later synchroniseren
 ```
 
 De tests met een eigen server (`e2e:coach`, `e2e:complaint`, `e2e:report`)
@@ -85,10 +86,26 @@ draagt een eigen kopregel, en die kan een formulier op een vreemde site niet
 meesturen.
 
 **Synchroniseren** houdt de lokale opslag leidend, zodat offline blijft werken.
-De server krijgt een kopie zodra dat kan. Bij een botsing wordt er niets
-stilzwijgend overschreven: twee toestellen die allebei iets hebben gelogd is
-geen randgeval maar wat er gebeurt zodra je de app op twee apparaten hebt. De
-app laat dan zien wat er aan beide kanten staat en jij kiest.
+De server krijgt een kopie zodra dat kan.
+
+Het scenario waar dit voor gemaakt is: je staat in een sportschool zonder
+bereik, logt je sets, doet de app dicht, en pas thuis gaat hij weer open. Wat je
+daar invoerde moet er dan nog zijn en vanzelf naar de server gaan.
+
+Daarvoor onthoudt de app twee dingen die een herstart overleven: met welke
+serverversie dit toestel voor het laatst gelijk stond, en of er sindsdien iets
+gewijzigd is dat nog niet verstuurd is. Met die twee is het verschil te zien
+tussen "ik heb offline getraind en de server weet er nog niets van" en "iemand
+anders heeft ondertussen ook iets gewijzigd". Het eerste is gewoon versturen.
+Alleen het tweede is een echte botsing waar jij in moet kiezen.
+
+Zonder die boekhouding lijkt elk verschil op een botsing, en krijg je na elke
+offline sessie de vraag welke versie je wilt houden. Kies je dan de verkeerde,
+dan is je training van die avond weg.
+
+Opnieuw proberen gebeurt bij het terugkomen van de verbinding, bij het
+terugkeren naar het tabblad, en elke minuut als vangnet voor een verbinding die
+er wel is maar niets doorlaat.
 
 ## Gezondheidsgegevens en de AVG
 
