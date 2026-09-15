@@ -58,6 +58,7 @@ import { ExerciseImage } from './ExerciseImage'
 import { conceptDatum, conceptOmvang, isVanVandaag, useConcept } from './conceptStore'
 import { formatteerTijd, rusttijdSeconden, tril, useRust, useSchermWakker } from './rust'
 import type { Rust } from './rust'
+import { SPIERGROEP, rirUitleg } from '@/domain/taal'
 
 export default function SessionLogger() {
   const hold = useAppStore((s) => s.medicalHold)
@@ -601,12 +602,15 @@ function ExerciseCard({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-[15px] font-semibold">{step.name}</h3>
+            <Badge tone="neutral">{SPIERGROEP[ladder.pattern]}</Badge>
             {prescription.decision?.flagged && <Badge tone="warn">Aangepast</Badge>}
           </div>
           <div className="num mt-0.5 text-[12.5px] text-ink-2">
             {prescription.sets} × {prescription.repMin}-{prescription.repMax}
             {!bodyweight && prescription.load > 0 && ` · ${prescription.load} kg`}
-            {` · RIR ${prescription.targetRir}`}
+          </div>
+          <div className="mt-0.5 text-[12px] text-ink-3">
+            Stop elke set met {rirUitleg(prescription.targetRir)} (RIR {prescription.targetRir}).
           </div>
           {prescription.lastTime && <div className="mt-0.5 text-[12px] text-ink-3">{prescription.lastTime}</div>}
         </div>
@@ -884,7 +888,9 @@ function SetRow({
         )}
 
         <div className="min-w-[124px] flex-1">
-          <div className="mb-1 text-[11.5px] font-medium text-ink-2">RIR {set.rir}</div>
+          <div className="mb-1 text-[11.5px] font-medium text-ink-2">
+            RIR {set.rir} <span className="font-normal text-ink-3">· {rirUitleg(set.rir)}</span>
+          </div>
           <ScalePicker
             value={set.rir}
             min={0}

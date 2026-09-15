@@ -31,6 +31,7 @@ import {
   useWeeklyCheckIn,
 } from '@/store/selectors'
 import { lastNDays, peakPain, weeklyVolume } from '@/domain/analytics'
+import { FASE_UITLEG } from '@/domain/taal'
 import { AlertCard } from '@/features/coach/AlertCard'
 import { BlockReviewCard } from '@/features/coach/BlockReviewCard'
 import { ProposalsCard } from '@/features/adapt/AdjustmentCards'
@@ -61,7 +62,17 @@ export default function Dashboard({ onNavigate }: { onNavigate: (tab: Tab) => vo
 
   return (
     <div className="space-y-4">
-      <Hero name={name} phaseName={phase.name} week={week} deload={deload.isDeload} />
+      <Hero
+        name={name}
+        phaseName={phase.name}
+        uitleg={
+          deload.isDeload
+            ? 'Een lichtere week, zodat je lichaam bijtrekt en je daarna weer kunt bouwen.'
+            : FASE_UITLEG[phase.id]
+        }
+        week={week}
+        deload={deload.isDeload}
+      />
 
       {hold?.active && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
@@ -202,7 +213,19 @@ export default function Dashboard({ onNavigate }: { onNavigate: (tab: Tab) => vo
 
 /* ------------------------------------------------------------------ */
 
-function Hero({ name, phaseName, week, deload }: { name: string; phaseName: string; week: number; deload: boolean }) {
+function Hero({
+  name,
+  phaseName,
+  uitleg,
+  week,
+  deload,
+}: {
+  name: string
+  phaseName: string
+  uitleg: string
+  week: number
+  deload: boolean
+}) {
   const hour = new Date().getHours()
   const greeting = hour < 6 ? 'Nog wakker' : hour < 12 ? 'Goedemorgen' : hour < 18 ? 'Goedemiddag' : 'Goedenavond'
 
@@ -213,7 +236,7 @@ function Hero({ name, phaseName, week, deload }: { name: string; phaseName: stri
       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
       className="flex flex-wrap items-end justify-between gap-3 pb-1"
     >
-      <div>
+      <div className="min-w-0">
         <p className="text-[13px] text-ink-3">
           {greeting}
           {name ? `, ${name}` : ''}
@@ -221,6 +244,7 @@ function Hero({ name, phaseName, week, deload }: { name: string; phaseName: stri
         <h1 className="mt-0.5 text-[26px] font-bold tracking-tight md:text-[30px]">
           {deload ? 'Deloadweek' : phaseName.split('—')[1]?.trim() || phaseName}
         </h1>
+        <p className="mt-1 max-w-[46ch] text-[13px] leading-snug text-ink-3">{uitleg}</p>
       </div>
       <div className="flex items-center gap-2">
         <Badge tone="brand">Week {week}</Badge>

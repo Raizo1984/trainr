@@ -42,6 +42,7 @@ import { assessRisk } from '@/domain/risk'
 import { BODY_REGIONS, EQUIPMENT_LABEL, RED_FLAG_LABEL, REGION_LABEL } from '@/domain/types'
 import type { BodyRegion, Complaint, Equipment, IntakeData, RedFlagSymptom, TrainingLevel } from '@/domain/types'
 import { getPhase } from '@/domain/phases'
+import { DOEL_LABEL } from '@/domain/taal'
 
 const STEPS = [
   { id: 'basis', title: 'Wie je bent', icon: Activity },
@@ -569,22 +570,23 @@ function GoalsStep({ intake, patch }: StepProps) {
 
   return (
     <Card>
-      <SectionTitle title="Doelen en doelstructuur" subtitle="Eén eindbeeld, één primair doel, maximaal drie secundaire doelen. Meer tegelijk wordt niets." />
+      <SectionTitle title="Wat wil je bereiken?" subtitle="Eén hoofddoel en een beeld van waar je over een paar jaar wilt staan. Meer tegelijk najagen levert niets op." />
       <div className="grid gap-4">
-        <Field label="Eindbeeld over 48 maanden" required hint="Wat wil je kunnen, en hoe wil je eruitzien?">
+        <Field label="Waar wil je over een paar jaar staan?" required hint="Wat wil je kunnen, en hoe wil je eruitzien? Eén of twee zinnen is genoeg.">
           <TextArea value={intake.goals.vision48m} onChange={(e) => patch((d) => { d.goals.vision48m = e.target.value })} placeholder="Tien strakke pull-ups, pijnvrij traplopen, zichtbaar sterker dan nu" />
         </Field>
-        <Field label="Primair doel">
+        <Field label="Wat wil je vooral bereiken?" hint="Eén doel. Alles tegelijk najagen levert niets op.">
           <ChoiceGroup
+            columns={1}
             value={intake.goals.primary}
             onChange={(v) => patch((d) => { d.goals.primary = v })}
-            options={[
-              { value: 'spiermassa', label: 'Spiermassa' },
-              { value: 'kracht', label: 'Kracht' },
-              { value: 'skill', label: 'Skills' },
-              { value: 'transformatie', label: 'Transformatie' },
-              { value: 'pijnvrij-bewegen', label: 'Pijnvrij bewegen' },
-            ]}
+            options={(
+              ['spiermassa', 'kracht', 'skill', 'transformatie', 'pijnvrij-bewegen'] as const
+            ).map((waarde) => ({
+              value: waarde,
+              label: DOEL_LABEL[waarde].label,
+              hint: DOEL_LABEL[waarde].uitleg,
+            }))}
           />
         </Field>
         <Field label="Droomdoelen" hint="Deze worden in fase 3 en verder in het programma verwerkt, niet als los kunstje erbij.">
