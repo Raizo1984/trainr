@@ -60,11 +60,38 @@ describe('feedbackForSet', () => {
     expect(f.nextLoad).toBe(35)
   })
 
-  it('verhoogt nooit tussen twee sets door', () => {
-    const makkelijk = ask(set({ reps: 12, rir: 5 }))
-    expect(makkelijk.verdict).toBe('let-op')
-    expect(makkelijk.nextLoad).toBeNull()
-    expect(makkelijk.action).toMatch(/gelijk/)
+  it('gaat een stap zwaarder als de set duidelijk te licht was', () => {
+    const makkelijk = ask(set({ reps: 12, rir: 5, load: 40 }))
+    expect(makkelijk.verdict).toBe('zwaarder')
+    // 40 + 2.5% = 41, naar boven op een bestaande stap is 42.5
+    expect(makkelijk.nextLoad).toBe(42.5)
+  })
+
+  it('rondt een verhoging naar boven af, anders verandert er niets', () => {
+    const f = ask(set({ reps: 12, rir: 5, load: 100 }))
+    expect(f.nextLoad).toBeGreaterThan(100)
+  })
+
+  it('doet hoogstens één stap omhoog per oefening', () => {
+    const f = ask(set({ reps: 12, rir: 5, load: 40 }), { alVerhoogd: true })
+    expect(f.verdict).toBe('let-op')
+    expect(f.nextLoad).toBeNull()
+    expect(f.action).toMatch(/al een keer omhoog/)
+  })
+
+  it('verhoogt niet op de laatste set, want dan is de oefening klaar', () => {
+    const f = ask(set({ reps: 12, rir: 5, load: 40 }), { setsDone: 3 })
+    expect(f.verdict).toBe('let-op')
+    expect(f.action).toMatch(/na afloop/)
+  })
+
+  it('laat pijn en techniek altijd voorgaan op een verhoging', () => {
+    expect(ask(set({ reps: 12, rir: 5, pain: 6 })).verdict).toBe('stop')
+    expect(ask(set({ reps: 12, rir: 5, formQuality: 2 })).verdict).toBe('lichter')
+  })
+
+  it('verhoogt niet in een deloadweek', () => {
+    expect(ask(set({ reps: 12, rir: 5 }), { isDeload: true }).verdict).toBe('goed')
   })
 
   it('laat een deloadweek met rust', () => {
@@ -106,5 +133,6 @@ describe('feedbackForSet', () => {
     expect(verdictTone('lichter')).toBe('warn')
     expect(verdictTone('let-op')).toBe('warn')
     expect(verdictTone('goed')).toBe('good')
+    expect(verdictTone('zwaarder')).toBe('brand')
   })
 })

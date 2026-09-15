@@ -240,3 +240,54 @@ describe('voorschrift uit historie', () => {
     expect(result.stepId).toBe('squat-1')
   })
 })
+
+describe('grondslag voor de volgende sessie', () => {
+  const planned = { sets: 3, repMin: 8, repMax: 12, targetRir: 2 }
+  const log = (sets: SetEntry[]): ExerciseLog => ({
+    ladderId: 'squat',
+    stepId: 'squat-5',
+    planned,
+    sets,
+  })
+
+  it('volgt het gewicht waarmee je afsloot, niet het zwaarste', () => {
+    // Halverwege omhoog: 45 is de grondslag, niet 40.
+    const omhoog = decideProgression({
+      log: log([set({ reps: 10, load: 40 }), set({ reps: 10, load: 45 }), set({ reps: 10, load: 45 })]),
+      isDeload: false,
+      safety,
+    })
+    expect(omhoog.next.load).toBe(45)
+  })
+
+  it('volgt ook een verlaging halverwege', () => {
+    // Teruggegaan vanwege techniek: dan begin je de volgende keer lager.
+    const omlaag = decideProgression({
+      log: log([set({ reps: 10, load: 50 }), set({ reps: 9, load: 45 }), set({ reps: 9, load: 45 })]),
+      isDeload: false,
+      safety,
+    })
+    expect(omlaag.next.load).toBeLessThanOrEqual(45)
+  })
+
+  it('stapelt geen tweede verhoging op een stap die je zelf al zette', () => {
+    // Alle sets op de bovenkant, maar er is tijdens de sessie al verzwaard.
+    const beslissing = decideProgression({
+      log: log([set({ reps: 12, load: 40 }), set({ reps: 12, load: 42.5 }), set({ reps: 12, load: 42.5 })]),
+      isDeload: false,
+      safety,
+    })
+    expect(beslissing.next.load).toBe(42.5)
+    expect(beslissing.reason).toMatch(/al naar/)
+  })
+
+  it('verhoogt wel als het gewicht de hele sessie gelijk bleef', () => {
+    const beslissing = decideProgression({
+      log: log([set({ reps: 12, load: 40 }), set({ reps: 12, load: 40 }), set({ reps: 12, load: 40 })]),
+      isDeload: false,
+      safety,
+    })
+    expect(beslissing.action).toBe('belasting-verhogen')
+    expect(beslissing.next.load).toBeGreaterThan(40)
+  })
+})

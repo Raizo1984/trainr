@@ -7,11 +7,16 @@
  * met dezelfde drempels, zodat het advies tijdens en na de sessie niet
  * uiteenloopt.
  *
- * Bewust beperkt: tussen sets kan het advies alleen gelijk blijven of omlaag,
- * nooit omhoog. Verhogen is een beslissing die De Regel na afloop neemt, met
- * alle sets in beeld. Zou je halverwege verzwaren, dan telt `heaviestLoad` dat
- * hogere gewicht als uitgangspunt voor de volgende sessie, en stapel je
- * ongemerkt twee verhogingen op elkaar.
+ * Verhogen mag, en dat is een bewuste wijziging. Eerder kon het advies alleen
+ * gelijk blijven of omlaag, omdat het zwaarste gewicht van een sessie de
+ * grondslag voor de volgende was: een stap halverwege telde dan twee keer.
+ * Sinds de grondslag het gewicht is waarmee je de oefening afsluit, speelt dat
+ * niet meer, en kan de app doen wat een trainer ook doet als je eerste set
+ * veel te licht was.
+ *
+ * Twee grenzen blijven: hoogstens één stap omhoog per oefening per sessie, en
+ * nooit omhoog als er pijn, techniekverlies of te weinig reserve in het spel
+ * is. Die gaan altijd voor.
  */
 
 import {
@@ -23,10 +28,11 @@ import {
   REDUCE_RIR,
   RIR_MIN,
   roundLoadDown,
+  roundLoadUp,
 } from './rule.ts'
 import type { LadderStep, Pain, SafetySettings, SetEntry } from './types.ts'
 
-export type SetVerdict = 'stop' | 'lichter' | 'let-op' | 'goed'
+export type SetVerdict = 'stop' | 'lichter' | 'zwaarder' | 'let-op' | 'goed'
 
 export interface SetFeedback {
   verdict: SetVerdict
@@ -49,6 +55,10 @@ export interface SetFeedbackContext {
   loadType: LadderStep['loadType']
   /** Warming-up en cooldown zijn niet progressief. */
   fixed?: boolean
+  /** Is er in deze oefening al een stap omhoog gezet? Er mag er maar één per sessie. */
+  alVerhoogd?: boolean
+  /** Stap omhoog in procent van de belasting. */
+  loadStepPct?: number
 }
 
 /** Zelfde belasting, maar netjes afgerond en nooit negatief. */
@@ -56,6 +66,13 @@ function lighter(load: number, factor: number): number | null {
   if (load <= 0) return null
   const next = roundLoadDown(load * factor)
   return next > 0 ? next : null
+}
+
+/** Eén echte stap zwaarder. Naar boven afronden, anders verandert er niets. */
+function zwaarder(load: number, stapPct: number): number | null {
+  if (load <= 0) return null
+  const next = roundLoadUp(load * (1 + stapPct / 100))
+  return next > load ? next : null
 }
 
 function loadText(next: number | null, loadType: LadderStep['loadType']): string {
@@ -150,13 +167,38 @@ export function feedbackForSet(ctx: SetFeedbackContext): SetFeedback {
     }
   }
 
-  // 7. Bovenkant gehaald en het ging makkelijk. Verhogen gebeurt na de sessie.
+  // 7. Bovenkant gehaald en het ging makkelijk: een stap zwaarder.
   if (set.reps >= planned.repMax && set.rir > planned.targetRir) {
+    const next = zwaarder(set.load, ctx.loadStepPct ?? 2.5)
+
+    if (ctx.alVerhoogd) {
+      return {
+        verdict: 'let-op',
+        headline: `${set.reps} reps met RIR ${set.rir}. Nog steeds ruim.`,
+        action:
+          'Je bent deze oefening al een keer omhoog gegaan. Houd dit gewicht vast; na de sessie bepaalt De Regel de volgende stap.',
+        nextLoad: null,
+        source: 'Sectie 3.1, The Rule',
+      }
+    }
+
+    if (laatste || next === null) {
+      return {
+        verdict: 'let-op',
+        headline: `${set.reps} reps met RIR ${set.rir}. Dit was te licht.`,
+        action: laatste
+          ? 'Laatste set. De Regel zet het gewicht na afloop een stap omhoog.'
+          : 'Kies zelf een zwaardere variant; met deze belasting is er geen stap te maken.',
+        nextLoad: null,
+        source: 'Sectie 3.1, The Rule',
+      }
+    }
+
     return {
-      verdict: 'let-op',
+      verdict: 'zwaarder',
       headline: `${set.reps} reps met RIR ${set.rir}. Dit was te licht.`,
-      action: `Deze sessie houd je het gewicht gelijk, anders telt de verhoging straks dubbel. Haal je dit op alle sets, dan gaat het gewicht na afloop omhoog.`,
-      nextLoad: null,
+      action: `Eén stap zwaarder voor de volgende set. ${loadText(next, loadType)} Meer dan één stap per sessie doen we niet.`,
+      nextLoad: next,
       source: 'Sectie 3.1, The Rule',
     }
   }
@@ -180,9 +222,11 @@ export function feedbackForSet(ctx: SetFeedbackContext): SetFeedback {
  * Toon bij het oordeel. De namen zijn die van het ontwerpsysteem, zodat het
  * scherm ze rechtstreeks kan doorgeven en er geen tweede vertaaltabel ontstaat.
  */
-export function verdictTone(v: SetVerdict): 'good' | 'warn' | 'serious' {
+export function verdictTone(v: SetVerdict): 'good' | 'warn' | 'serious' | 'brand' {
   if (v === 'stop') return 'serious'
   if (v === 'lichter' || v === 'let-op') return 'warn'
+  // Zwaarder is geen waarschuwing maar goed nieuws, en hoort er ook zo uit te zien.
+  if (v === 'zwaarder') return 'brand'
   return 'good'
 }
 

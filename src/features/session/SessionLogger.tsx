@@ -10,17 +10,21 @@ import { useCallback, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CircleCheck,
   CircleDot,
   Info,
+  Mic,
+  MicOff,
   Minus,
+  OctagonX,
   Pause,
   Plus,
   Save,
-  Mic,
-  MicOff,
-  OctagonX,
+  Timer,
   Trash2,
+  TrendingUp,
   TriangleAlert,
   Undo2,
 } from 'lucide-react'
@@ -52,6 +56,8 @@ import { useSpeech } from '@/ui/useSpeech'
 import { ComplaintCard } from './ComplaintCard'
 import { ExerciseImage } from './ExerciseImage'
 import { conceptDatum, conceptOmvang, isVanVandaag, useConcept } from './conceptStore'
+import { formatteerTijd, rusttijdSeconden, tril, useRust, useSchermWakker } from './rust'
+import type { Rust } from './rust'
 
 export default function SessionLogger() {
   const hold = useAppStore((s) => s.medicalHold)
@@ -144,6 +150,12 @@ function LogPanel() {
   const draft = concept.sets
   const [started, setStarted] = useState(conceptVanVandaag)
   const [saved, setSaved] = useState(false)
+  const [oefeningIndex, setOefeningIndex] = useState(0)
+  const rust = useRust()
+
+  // Zolang je traint blijft het scherm aan. Anders moet je je telefoon tussen
+  // twee sets door steeds ontgrendelen met handen die dat niet fijn vinden.
+  useSchermWakker(started)
 
   const prescriptions = useMemo(
     () => (template ? prescribeSession(sessions, template.main, safety) : []),
@@ -155,6 +167,7 @@ function LogPanel() {
   }
 
   const loggedSets = Object.values(draft).flat().length
+  const huidige = prescriptions[Math.min(oefeningIndex, Math.max(0, prescriptions.length - 1))]
   const plannedSets = prescriptions.reduce((total, p) => total + p.sets, 0)
 
   const save = () => {
@@ -298,21 +311,48 @@ function LogPanel() {
     <div className="space-y-4">
       <div className="sticky top-[57px] z-20 -mx-4 px-4 pb-2 pt-1 backdrop-blur-xl md:top-0 md:-mx-2 md:px-2" style={{ background: 'color-mix(in oklab, var(--surface-base) 82%, transparent)' }}>
         <div className="card flex items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
+          {/*
+            Waar je bent staat in dezelfde balk als de knoppen, en niet apart
+            eronder. Op een telefoon is verticale ruimte het schaarste goed, en
+            twee keer hetzelfde aantal sets tonen hielp niemand.
+          */}
           <div className="min-w-0 flex-1">
-            <div className="truncate text-[13.5px] font-semibold sm:text-[14px]">{template.name}</div>
-            <div className="num text-[12px] text-ink-3">
-              {loggedSets} van {plannedSets} sets gelogd
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="shrink-0 text-[13.5px] font-semibold sm:text-[14px]">
+                Oefening {Math.min(oefeningIndex + 1, prescriptions.length)} van {prescriptions.length}
+              </span>
+              <span className="num shrink-0 text-[11.5px] text-ink-3" title={`${loggedSets} van ${plannedSets} sets gelogd`}>
+                {loggedSets}/{plannedSets}
+              </span>
+            </div>
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full" style={{ background: 'var(--surface-3)' }}>
+              <motion.div
+                className="brand-gradient h-full rounded-full"
+                initial={false}
+                animate={{ width: `${plannedSets > 0 ? Math.min(100, (loggedSets / plannedSets) * 100) : 0}%` }}
+                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              />
             </div>
           </div>
-          <button
+          {/*
+            Eén knop, geen twee.
+            
+            Hier stonden een icoonknop voor smalle schermen en een knop met
+            tekst voor brede, waarbij de brede met `hidden` verborgen zou
+            worden. Dat werkte niet: de knop zet zelf al `inline-flex`, en in
+            Tailwind v4 wint die van `hidden`. Gevolg: op een telefoon stonden
+            er twee terugknoppen naast elkaar en was er geen ruimte meer voor
+            de voortgang. Nu verbergen we alleen het woord, niet de knop.
+          */}
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setStarted(false)}
+            icon={<Undo2 className="size-4" />}
             aria-label="Terug naar het overzicht"
-            className="grid size-10 shrink-0 place-items-center rounded-xl text-ink-2 transition-colors hover:bg-surface-3 hover:text-ink sm:hidden"
+            className="shrink-0"
           >
-            <Undo2 className="size-[18px]" />
-          </button>
-          <Button variant="ghost" size="sm" onClick={() => setStarted(false)} icon={<Undo2 className="size-4" />} className="hidden sm:inline-flex">
-            Terug
+            <span className="hidden sm:inline">Terug</span>
           </Button>
           <Button variant="primary" size="sm" onClick={save} disabled={loggedSets === 0} icon={<Save className="size-4" />} className="shrink-0">
             Opslaan
@@ -320,17 +360,43 @@ function LogPanel() {
         </div>
       </div>
 
-      {prescriptions.map((prescription, index) => (
+      {/*
+        Eén oefening tegelijk, groot in beeld.
+        
+        Een lijst met alles tegelijk leest prima aan een bureau en is onbruikbaar
+        in een zaal: je scrolt met bezwete handen langs vier oefeningen die je nu
+        niet doet. Dit scherm toont waar je mee bezig bent, hoe ver je bent, en
+        verder niets.
+      */}
+      {huidige && (
         <ExerciseCard
-          key={prescription.ladderId}
-          prescription={prescription}
-          index={index}
-          sets={draft[prescription.ladderId] ?? []}
-          onChange={(sets) => concept.zetSets(prescription.ladderId, sets)}
+          key={huidige.ladderId}
+          prescription={huidige}
+          index={oefeningIndex}
+          sets={draft[huidige.ladderId] ?? []}
+          solo
+          onChange={(sets) => concept.zetSets(huidige.ladderId, sets)}
+          onSetGelogd={() => {
+            tril()
+            rust.start(rusttijdSeconden(getLadder(huidige.ladderId).pattern, Boolean(huidige.fixed)))
+          }}
         />
-      ))}
+      )}
+
+      <OefeningNavigatie
+        huidig={oefeningIndex}
+        totaal={prescriptions.length}
+        namen={prescriptions.map((p) => getStep(p.stepId).name)}
+        gedaan={prescriptions.map((p) => (draft[p.ladderId] ?? []).length >= p.sets)}
+        onGa={(i) => {
+          setOefeningIndex(i)
+          window.scrollTo({ top: 0, behavior: 'smooth' })
+        }}
+      />
 
       <ComplaintCard prescriptions={prescriptions} />
+
+      <RustBalk rust={rust} />
     </div>
   )
 }
@@ -366,24 +432,136 @@ function FixedList({ items }: { items: Array<{ ladderId: string; stepId: string;
 
 /* ------------------------------------------------------------------ */
 
+/**
+ * Vorige en volgende oefening, plus de rij stippen ertussen.
+ *
+ * De stippen zijn niet alleen versiering: ze laten zien hoeveel er nog komt en
+ * je kunt er rechtstreeks naartoe, bijvoorbeeld als een toestel bezet is en je
+ * iets naar voren haalt.
+ */
+function OefeningNavigatie({
+  huidig,
+  totaal,
+  namen,
+  gedaan,
+  onGa,
+}: {
+  huidig: number
+  totaal: number
+  namen: string[]
+  gedaan: boolean[]
+  onGa: (index: number) => void
+}) {
+  if (totaal <= 1) return null
+  return (
+    <div className="card flex items-center gap-2 p-3">
+      <button
+        onClick={() => onGa(Math.max(0, huidig - 1))}
+        disabled={huidig === 0}
+        aria-label="Vorige oefening"
+        className="grid size-11 shrink-0 place-items-center rounded-xl text-ink-2 transition-colors hover:bg-surface-3 hover:text-ink disabled:opacity-35"
+      >
+        <ChevronLeft className="size-5" />
+      </button>
+
+      <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5">
+        {namen.map((naam, i) => (
+          <button
+            key={i}
+            onClick={() => onGa(i)}
+            aria-label={`Naar oefening ${i + 1}: ${naam}`}
+            aria-current={i === huidig ? 'step' : undefined}
+            className="grid h-9 place-items-center px-1"
+          >
+            <span
+              className="block rounded-full transition-all"
+              style={
+                i === huidig
+                  ? { width: 22, height: 6, background: 'var(--brand-1)' }
+                  : { width: 6, height: 6, background: gedaan[i] ? 'var(--status-good)' : 'var(--surface-3)' }
+              }
+            />
+          </button>
+        ))}
+      </div>
+
+      <button
+        onClick={() => onGa(Math.min(totaal - 1, huidig + 1))}
+        disabled={huidig >= totaal - 1}
+        aria-label="Volgende oefening"
+        className="grid size-11 shrink-0 place-items-center rounded-xl text-ink-2 transition-colors hover:bg-surface-3 hover:text-ink disabled:opacity-35"
+      >
+        <ChevronRight className="size-5" />
+      </button>
+    </div>
+  )
+}
+
+/**
+ * De rustklok, onderin en buiten de weg.
+ *
+ * Loopt op een eindtijdstip, niet op een aftellende teller: zet je je telefoon
+ * weg, dan bevriezen tellers in de achtergrond en klopt de tijd niet meer als
+ * je terugkomt.
+ */
+function RustBalk({ rust }: { rust: Rust }) {
+  if (!rust.actief) return null
+  const deel = rust.totaal > 0 ? rust.resterend / rust.totaal : 0
+  const bijna = rust.resterend <= 10
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="sticky bottom-[76px] z-30 md:bottom-3"
+    >
+      <div className="card overflow-hidden p-0">
+        <div className="h-1" style={{ background: 'var(--surface-3)' }}>
+          <div
+            className="h-full transition-[width] duration-200"
+            style={{ width: `${deel * 100}%`, background: bijna ? 'var(--status-good)' : 'var(--brand-1)' }}
+          />
+        </div>
+        <div className="flex items-center gap-3 px-3.5 py-2.5">
+          <Timer className="size-4 shrink-0 text-ink-3" />
+          <span className="num text-[17px] font-bold tabular-nums">{formatteerTijd(rust.resterend)}</span>
+          <span className="flex-1 text-[12px] text-ink-3">rust</span>
+          <Button size="sm" variant="ghost" onClick={() => rust.verleng(30)}>
+            +30s
+          </Button>
+          <Button size="sm" variant="ghost" onClick={rust.stop}>
+            Klaar
+          </Button>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
 function ExerciseCard({
   prescription,
   index,
   sets,
   onChange,
+  solo = false,
+  onSetGelogd,
 }: {
   prescription: Prescription
   index: number
   sets: SetEntry[]
   onChange: (sets: SetEntry[]) => void
+  /** Enige oefening in beeld: altijd open, geen kop om dicht te klappen. */
+  solo?: boolean
+  onSetGelogd?: () => void
 }) {
   const step = getStep(prescription.stepId)
   const ladder = getLadder(prescription.ladderId)
-  const [open, setOpen] = useState(index === 0)
+  const [open, setOpen] = useState(index === 0 || solo)
   const bodyweight = step.loadType === 'trede'
 
   const addSet = () => {
     const last = sets[sets.length - 1]
+    onSetGelogd?.()
     onChange([
       ...sets,
       {
@@ -405,7 +583,11 @@ function ExerciseCard({
 
   return (
     <motion.section layout className="card overflow-hidden">
-      <button onClick={() => setOpen((o) => !o)} className="flex w-full items-start gap-3 p-5 text-left">
+      <button
+        onClick={() => !solo && setOpen((o) => !o)}
+        disabled={solo}
+        className="flex w-full items-start gap-3 p-5 text-left disabled:cursor-default"
+      >
         <span
           className="num mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg text-[12.5px] font-bold"
           style={
@@ -483,6 +665,7 @@ function ExerciseCard({
                 sets={sets}
                 prescription={prescription}
                 loadType={step.loadType}
+                onVolgendGewicht={(kg) => update(sets.length - 1, { load: kg })}
               />
 
               <button
@@ -587,10 +770,13 @@ function SetVerdictPanel({
   sets,
   prescription,
   loadType,
+  onVolgendGewicht,
 }: {
   sets: SetEntry[]
   prescription: Prescription
   loadType: LadderStep['loadType']
+  /** Het geadviseerde gewicht overnemen zonder zelf te rekenen. */
+  onVolgendGewicht?: (kg: number) => void
 }) {
   const safety = useSafety()
   const deload = useDeloadInfo()
@@ -610,6 +796,15 @@ function SetVerdictPanel({
     safety,
     loadType,
     fixed: prescription.fixed,
+    /*
+     * Eén stap omhoog per oefening, gemeten tegen het voorschrift en niet tegen
+     * de eerste gelogde set. Met die eerste set als ijkpunt kun je bij één set
+     * blijven doorklikken: elke keer is de laatste set ook de eerste, en dan is
+     * er nooit "al verhoogd". Het voorschrift is het startpunt van deze sessie,
+     * dus alles daarboven is een stap die je al hebt gezet.
+     */
+    alVerhoogd: last.load > prescription.load,
+    loadStepPct: safety.loadStepPct,
   })
   const tone = TONE_STYLE[verdictTone(feedback.verdict)]
 
@@ -629,6 +824,8 @@ function SetVerdictPanel({
           <OctagonX className="mt-px size-4 shrink-0" style={{ color: tone.fg }} />
         ) : feedback.verdict === 'goed' ? (
           <CircleCheck className="mt-px size-4 shrink-0" style={{ color: tone.fg }} />
+        ) : feedback.verdict === 'zwaarder' ? (
+          <TrendingUp className="mt-px size-4 shrink-0" style={{ color: tone.fg }} />
         ) : (
           <TriangleAlert className="mt-px size-4 shrink-0" style={{ color: tone.fg }} />
         )}
@@ -637,7 +834,20 @@ function SetVerdictPanel({
             Set {sets.length}: {feedback.headline}
           </div>
           <p className="mt-0.5 text-[12.5px] leading-snug text-ink-2">{feedback.action}</p>
-          <div className="mt-1 text-[11px] text-ink-3">{feedback.source}</div>
+          {feedback.nextLoad !== null && onVolgendGewicht && (
+            <Button
+              size="sm"
+              variant="quiet"
+              className="mt-2"
+              onClick={() => {
+                tril()
+                onVolgendGewicht(feedback.nextLoad!)
+              }}
+            >
+              Zet de volgende set op {feedback.nextLoad} kg
+            </Button>
+          )}
+          <div className="mt-1.5 text-[11px] text-ink-3">{feedback.source}</div>
         </div>
       </div>
     </motion.div>
@@ -769,11 +979,11 @@ function Stepper({
           background: highlight ? 'var(--status-good-soft)' : 'var(--surface-1)',
         }}
       >
-        <button onClick={() => onChange(value - step)} className="grid size-9 place-items-center text-ink-3 transition-colors hover:text-ink" aria-label={`${label} omlaag`}>
+        <button onClick={() => onChange(value - step)} className="grid size-11 place-items-center text-ink-2 transition-colors hover:text-ink active:scale-95" aria-label={`${label} omlaag`}>
           <Minus className="size-3.5" />
         </button>
         <span className="num w-10 text-center text-[14px] font-bold">{value}</span>
-        <button onClick={() => onChange(value + step)} className="grid size-9 place-items-center text-ink-3 transition-colors hover:text-ink" aria-label={`${label} omhoog`}>
+        <button onClick={() => onChange(value + step)} className="grid size-11 place-items-center text-ink-2 transition-colors hover:text-ink active:scale-95" aria-label={`${label} omhoog`}>
           <Plus className="size-3.5" />
         </button>
       </div>

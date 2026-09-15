@@ -116,6 +116,9 @@ jobs:
       - name: Lopende sessie blijft behouden
         run: npm run e2e:concept
 
+      - name: Sessiescherm en rustklok
+        run: npm run e2e:sessie
+
       - name: Set inspreken
         run: npm run e2e:speech
 

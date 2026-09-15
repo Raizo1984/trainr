@@ -74,6 +74,20 @@ export const REDUCE_PAIN_CEILING = 0.7
 export const REDUCE_FORM = 0.85
 export const REDUCE_RIR = 0.92
 
+/**
+ * Belasting afronden naar boven, op een stap die bestaat.
+ *
+ * Bij een verhoging is naar beneden afronden zinloos: dan kom je vaak op
+ * hetzelfde gewicht uit en gebeurt er niets. Naar boven levert altijd een
+ * echte stap op.
+ */
+export function roundLoadUp(kg: number): number {
+  if (kg <= 0) return 0
+  if (kg < 10) return Math.ceil(kg * 2) / 2
+  if (kg < 30) return Math.ceil(kg)
+  return Math.ceil(kg / 2.5) * 2.5
+}
+
 /** Belasting afronden op een stap die in de zaal ook echt bestaat. */
 export function roundLoad(kg: number): number {
   if (kg <= 0) return 0
@@ -115,6 +129,29 @@ export function finalWorkSet(log: ExerciseLog): SetEntry | null {
 
 export function heaviestLoad(log: ExerciseLog): number {
   return workingSets(log).reduce((max, s) => Math.max(max, s.load), 0)
+}
+
+/**
+ * Het gewicht waarmee je de oefening hebt afgesloten.
+ *
+ * Dit is de grondslag voor de volgende sessie, niet het zwaarste gewicht.
+ * Het verschil telt zodra je tijdens een sessie verzwaart: met het zwaarste
+ * gewicht als basis zou die verhoging daarna nog een keer meetellen, en dan
+ * stapel je twee stappen op elkaar zonder dat iemand dat kiest.
+ *
+ * Het werkt ook de andere kant op. Ging je halverwege omlaag vanwege pijn of
+ * techniek, dan begin je de volgende keer op dat lagere gewicht. Dat is precies
+ * wat een voorzichtige coach zou doen.
+ */
+export function werkbelasting(log: ExerciseLog): number {
+  return finalWorkSet(log)?.load ?? 0
+}
+
+/** Is er tijdens deze oefening al verzwaard? Hoogstens één stap per sessie. */
+export function verhoogdTijdensSessie(log: ExerciseLog): boolean {
+  const sets = workingSets(log)
+  if (sets.length < 2) return false
+  return sets[sets.length - 1].load > sets[0].load
 }
 
 export function maxPain(log: ExerciseLog): Pain {
@@ -161,7 +198,7 @@ function keep(
 export function decideProgression(ctx: ProgressionContext): ProgressionDecision {
   const { log, isDeload, safety } = ctx
   const step = stepOf(log)
-  const current = heaviestLoad(log)
+  const current = werkbelasting(log)
   const sets = workingSets(log)
 
   if (sets.length === 0) {
@@ -262,6 +299,22 @@ export function decideProgression(ctx: ProgressionContext): ProgressionDecision 
         flagged: false,
       }
     }
+    /*
+     * Ben je tijdens de sessie al omhoog gegaan, dan is die stap genoeg. Nog
+     * een stap erbovenop zou betekenen dat één goede oefening twee verhogingen
+     * oplevert, en dat is precies hoe je in twee weken op een gewicht staat
+     * waar je techniek niet bij past.
+     */
+    if (verhoogdTijdensSessie(log)) {
+      return {
+        action: 'reps-toevoegen',
+        next: keep(log, current),
+        reason: `Je bent tijdens deze sessie al naar ${roundLoad(current)} kg gegaan. Houd dat eerst een sessie vast voordat er weer een stap bij komt.`,
+        source: 'Sectie 3.1, The Rule',
+        flagged: false,
+      }
+    }
+
     const increased = current > 0 ? current * (1 + safety.loadStepPct / 100) : 0
     return {
       action: 'belasting-verhogen',

@@ -110,7 +110,7 @@ async function fillIntake(p, { redFlag = false, extremeFood = false } = {}) {
     await p.waitForTimeout(220)
   }
   const counter = await p.textContent('body')
-  ok(/3 van \d+ sets gelogd/.test(counter), 'sessie: teller telt gelogde sets')
+  ok(/3\/\d+ *$|3\/\d+[^0-9]/.test(counter), 'sessie: teller telt gelogde sets')
   await p.screenshot({ path: `${out}/flow-sessie.png`, fullPage: true })
 
   step('flow3 opslaan')

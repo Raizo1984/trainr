@@ -57,7 +57,7 @@ try {
     await p1.waitForTimeout(350)
   }
   const voor = await p1.textContent('body')
-  ok(/3 van \d+ sets gelogd/.test(voor), 'drie sets staan er')
+  ok(/3\/\d+ *$|3\/\d+[^0-9]/.test(voor), 'drie sets staan er')
 
   // Een herkenbare waarde zetten, zodat we zien dat het écht dezelfde sets zijn.
   await p1.getByRole('button', { name: 'Reps omhoog' }).first().click()
@@ -81,8 +81,8 @@ try {
   await naarTrainen(p2)
   await p2.waitForTimeout(600)
   const na = await p2.textContent('body')
-  ok(/sets gelogd/.test(na), 'de app komt meteen terug in de lopende sessie')
-  ok(/3 van \d+ sets gelogd/.test(na), 'alle drie de sets staan er nog')
+  ok(/Oefening \d+ van \d+/.test(na), 'de app komt meteen terug in de lopende sessie')
+  ok(/3\/\d+ *$|3\/\d+[^0-9]/.test(na), 'alle drie de sets staan er nog')
 
   const repsNa = await p2.locator('.card-quiet').first().innerText()
   ok(repsNa === repsVoor, 'ook de ingevulde waarden staan er nog')
@@ -96,7 +96,7 @@ try {
 
   await p2.getByRole('button', { name: /^Verder met/ }).click()
   await p2.waitForTimeout(700)
-  ok(/3 van \d+ sets gelogd/.test((await p2.textContent('body')) ?? ''), 'verdergaan wist je sets niet')
+  ok(/3\/\d+ *$|3\/\d+[^0-9]/.test((await p2.textContent('body')) ?? ''), 'verdergaan wist je sets niet')
 
   /* ---- Opslaan ruimt het concept op ---- */
   await p2.getByRole('button', { name: 'Opslaan' }).click()
@@ -109,7 +109,7 @@ try {
   await naarTrainen(p3)
   await p3.waitForTimeout(800)
   const schoon = (await p3.textContent('body')) ?? ''
-  ok(/^(?!.*sets gelogd).*$/s.test(schoon), 'na opslaan is het concept weg')
+  ok(!/Oefening \d+ van \d+/.test(schoon), 'na opslaan is het concept weg')
   ok(/Beginnen met/.test(schoon), 'en je begint weer met een lege sessie')
 
   /* ---- De opgeslagen sessie draagt de dag waarop hij begon ---- */
