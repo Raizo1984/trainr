@@ -23,7 +23,19 @@ const ok = (cond, msg) => {
   if (!cond) fails.push(msg)
 }
 
-const start = (env) => startServer({ PORT: String(APP_PORT), DATABASE_SSL: 'uit', ...env })
+let herstelToken = null
+
+const start = (env) => {
+  const proces = startServer({ PORT: String(APP_PORT), DATABASE_SSL: 'uit', MAIL_LOGBOEK: 'aan', ...env })
+  // De herstelmail gaat bij MAIL_LOGBOEK naar het logboek. Daar plukken we de
+  // link uit, zodat de test het token gebruikt dat de gebruiker ook zou krijgen
+  // in plaats van er zelf een te verzinnen.
+  proces.stdout.on('data', (d) => {
+    const m = /wachtwoord-herstellen\?token=([^\s&"']+)/.exec(String(d))
+    if (m) herstelToken = decodeURIComponent(m[1])
+  })
+  return proces
+}
 const wacht = () => wachtOpServer(`http://localhost:${APP_PORT}/api/account`)
 
 let cookie = ''
@@ -48,7 +60,13 @@ process.env.DATABASE_SSL = 'uit'
 const { Client } = await import('pg')
 const schoon = new Client({ connectionString: DB })
 await schoon.connect()
-await schoon.query('drop table if exists migraties, inlogpogingen, staat, sessies, gebruikers cascade')
+/*
+ * Het hele schema weg in plaats van een lijst tabellen. Zo'n lijst raakt
+ * achter zodra er een migratie bij komt, en dan faalt de test op een tabel die
+ * nog van de vorige keer staat. Dat is precies wat hier gebeurde toen de tabel
+ * voor wachtwoordherstel erbij kwam.
+ */
+await schoon.query('drop schema public cascade; create schema public;')
 await schoon.end()
 
 let server = start({ DATABASE_URL: DB })
@@ -144,6 +162,56 @@ try {
   cookie = ''
   const nietMeer = await roep('/api/account/inloggen', { method: 'POST', body: { email: 'iemand@voorbeeld.nl', wachtwoord: 'nog een lang wachtwoord' } })
   ok(nietMeer.status === 401, 'na verwijderen kun je niet meer inloggen')
+
+  /* ---- Wachtwoord vergeten ---- */
+
+  cookie = ''
+  const HERSTEL_EMAIL = 'vergeten@voorbeeld.nl'
+  await roep('/api/account/registreren', {
+    method: 'POST',
+    body: { email: HERSTEL_EMAIL, wachtwoord: 'eerste lange wachtwoord', toestemming: true },
+  })
+  cookie = ''
+
+  const mogelijk = await roep('/api/account/herstel-mogelijk')
+  ok(mogelijk.body?.mogelijk === true, 'de app hoort dat herstel aanstaat')
+
+  const onbekend = await roep('/api/account/wachtwoord-vergeten', { method: 'POST', body: { email: 'niemand@voorbeeld.nl' } })
+  ok(onbekend.status === 200, 'een onbekend adres levert hetzelfde antwoord op')
+  ok(/Als er een account bij dit adres hoort/.test(onbekend.body?.message ?? ''), 'en de tekst verraadt niets')
+
+  const gevraagd = await roep('/api/account/wachtwoord-vergeten', { method: 'POST', body: { email: HERSTEL_EMAIL } })
+  ok(gevraagd.status === 200, 'een bestaand adres levert precies hetzelfde antwoord op')
+  ok(gevraagd.body?.message === onbekend.body?.message, 'letterlijk dezelfde melding, dus niet te onderscheiden')
+
+  // Het token staat alleen als hash in de database; de link stond in het logboek.
+  const token = herstelToken
+  ok(typeof token === 'string' && token.length > 20, 'er is een hersteltoken aangemaakt')
+
+  const zwakHerstel = await roep('/api/account/wachtwoord-herstellen', { method: 'POST', body: { token, wachtwoord: 'kort' } })
+  ok(zwakHerstel.status === 400 && zwakHerstel.body.error === 'wachtwoord-zwak', 'een zwak nieuw wachtwoord wordt geweigerd')
+
+  const verzonnen = await roep('/api/account/wachtwoord-herstellen', { method: 'POST', body: { token: 'x'.repeat(40), wachtwoord: 'tweede lange wachtwoord' } })
+  ok(verzonnen.status === 400, 'een verzonnen token werkt niet')
+
+  const hersteld = await roep('/api/account/wachtwoord-herstellen', { method: 'POST', body: { token, wachtwoord: 'tweede lange wachtwoord' } })
+  ok(hersteld.status === 200, 'herstellen lukt')
+
+  const nogmaals = await roep('/api/account/wachtwoord-herstellen', { method: 'POST', body: { token, wachtwoord: 'derde lange wachtwoord' } })
+  ok(nogmaals.status === 400 && nogmaals.body.error === 'token-gebruikt', 'dezelfde link werkt maar één keer')
+
+  const oud = await roep('/api/account/inloggen', { method: 'POST', body: { email: HERSTEL_EMAIL, wachtwoord: 'eerste lange wachtwoord' } })
+  ok(oud.status === 401, 'het oude wachtwoord werkt niet meer')
+  const nieuw2 = await roep('/api/account/inloggen', { method: 'POST', body: { email: HERSTEL_EMAIL, wachtwoord: 'tweede lange wachtwoord' } })
+  ok(nieuw2.status === 200, 'het nieuwe wachtwoord werkt')
+
+  // Grens op het aanvragen.
+  cookie = ''
+  let laatste = null
+  for (let i = 0; i < 4; i++) {
+    laatste = await roep('/api/account/wachtwoord-vergeten', { method: 'POST', body: { email: HERSTEL_EMAIL } })
+  }
+  ok(laatste.status === 429, 'meer dan drie aanvragen achter elkaar wordt geweigerd')
 
   await stopServer(server)
 

@@ -10,6 +10,7 @@ import express from 'express'
 import type { Express, NextFunction, Request, Response } from 'express'
 import {
   AccountFout,
+  HERSTEL_MINUTEN,
   TOESTEMMING_VERSIE,
   bewaarStaat,
   gebruikerBijToken,
@@ -20,9 +21,15 @@ import {
   registreer,
   ruimPogingenOp,
   ruimSessiesOp,
+  herstelWachtwoord,
+  maakHerstelToken,
+  noteerPoging,
+  ruimHerstelOp,
+  telPogingen,
   verwijderAccount,
   wijzigWachtwoord,
 } from './accounts.ts'
+import { herstelBericht, mailBeschikbaar, verstuur } from './mail.ts'
 import { SESSIE_COOKIE, cookieOpties, keurEmail, keurWachtwoord } from './auth.ts'
 import { beschikbaar } from './db.ts'
 
@@ -95,6 +102,20 @@ function stuurAccountFout(res: Response, error: unknown): void {
   }
   console.error('Accountfout', error)
   res.status(500).json({ error: 'onbekend', message: 'Er ging iets mis aan onze kant.' })
+}
+
+/**
+ * Waar de app draait, voor de link in de mail.
+ *
+ * Achter een publicatie staat een proxy, dus het protocol uit het verzoek
+ * klopt niet altijd. `APP_URL` gaat daarom voor: één plek waar het goed staat,
+ * in plaats van raden per verzoek.
+ */
+function herkomst(req: Request): string {
+  const ingesteld = process.env.APP_URL?.replace(/\/+$/, '')
+  if (ingesteld) return ingesteld
+  const protocol = req.get('x-forwarded-proto') ?? req.protocol
+  return `${protocol}://${req.get('host') ?? 'localhost'}`
 }
 
 function eisDatabase(_req: Request, res: Response, next: NextFunction): void {
@@ -245,6 +266,97 @@ export function accountRoutes(app: Express): void {
     }
   })
 
+  /* ---- Wachtwoord vergeten ---- */
+
+  app.get('/api/account/herstel-mogelijk', (_req, res) => {
+    res.json({ mogelijk: beschikbaar() && mailBeschikbaar() })
+  })
+
+  app.post('/api/account/wachtwoord-vergeten', eisDatabase, async (req, res) => {
+    if (!mailBeschikbaar()) {
+      res.status(503).json({
+        error: 'geen-mail',
+        message:
+          'Er is geen e-maildienst ingesteld, dus we kunnen je geen herstellink sturen. Neem contact op met de beheerder.',
+      })
+      return
+    }
+
+    const { email } = req.body as { email?: string }
+    const fout = keurEmail(email)
+    if (fout) {
+      res.status(400).json({ error: 'email-ongeldig', message: fout })
+      return
+    }
+
+    /*
+     * Een grens op het aanvragen, want zonder grens kan iemand met een script
+     * honderden mails laten versturen naar een adres dat hij niet bezit. Dat
+     * kost jou geld en de ontvanger zijn geduld.
+     */
+    const sleutel = `herstel:${(email as string).trim().toLowerCase()}`
+    if ((await telPogingen(sleutel)) >= 3) {
+      res.status(429).json({
+        error: 'te-veel-pogingen',
+        message: 'Er zijn net al herstellinks aangevraagd. Kijk in je inbox, of wacht een kwartier.',
+      })
+      return
+    }
+    await noteerPoging(sleutel)
+
+    try {
+      const herstel = await maakHerstelToken(email as string)
+
+      /*
+       * Het antwoord is hetzelfde of het adres nu bestaat of niet. Zou dat
+       * verschillen, dan kan iemand met een lijst adressen uitvinden wie hier
+       * een account heeft, en bij gezondheidsgegevens is alleen dat al
+       * gevoelige informatie.
+       */
+      if (herstel) {
+        const basis = herkomst(req)
+        const link = `${basis}/wachtwoord-herstellen?token=${encodeURIComponent(herstel.token)}`
+        await verstuur(herstelBericht(herstel.email, link, HERSTEL_MINUTEN))
+      }
+
+      res.json({
+        ok: true,
+        message:
+          'Als er een account bij dit adres hoort, is er een herstellink onderweg. Kijk ook in je ongewenste post.',
+      })
+    } catch (error) {
+      console.error('Herstelmail mislukte', error)
+      res.status(502).json({
+        error: 'mail-mislukt',
+        message: 'De herstelmail kon niet verstuurd worden. Probeer het later opnieuw.',
+      })
+    }
+  })
+
+  app.post('/api/account/wachtwoord-herstellen', eisDatabase, async (req, res) => {
+    const { token, wachtwoord } = req.body as { token?: string; wachtwoord?: string }
+    if (typeof token !== 'string' || token.length < 10) {
+      res.status(400).json({ error: 'token-onbekend', message: 'Deze link werkt niet. Vraag een nieuwe aan.' })
+      return
+    }
+    const fout = keurWachtwoord(wachtwoord ?? '')
+    if (fout) {
+      res.status(400).json({ error: 'wachtwoord-zwak', message: fout })
+      return
+    }
+    try {
+      await herstelWachtwoord(token, wachtwoord as string)
+      // Bewust niet meteen inloggen. Je hebt net een wachtwoord gekozen; dat
+      // één keer intypen bevestigt dat je het ook echt onthouden hebt.
+      res.json({
+        ok: true,
+        message: 'Je wachtwoord is gewijzigd en je bent overal uitgelogd. Log in met je nieuwe wachtwoord.',
+      })
+    } catch (error) {
+      stuurAccountFout(res, error)
+    }
+  })
+
   /** Artikel 17 AVG. Weg is weg, ook de openstaande sessies. */
   app.post('/api/account/verwijderen', eisDatabase, eisInlog, async (req, res) => {
     const { bevestiging } = req.body as { bevestiging?: string }
@@ -278,6 +390,7 @@ export function startOpruimen(): void {
     try {
       await ruimSessiesOp()
       await ruimPogingenOp()
+      await ruimHerstelOp()
     } catch (error) {
       console.error('Opruimen mislukte', error)
     }

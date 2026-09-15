@@ -148,6 +148,9 @@ jobs:
       - name: Offline trainen en later synchroniseren
         run: npm run e2e:offline-sync
 
+      - name: Wachtwoord vergeten
+        run: npm run e2e:herstel
+
       - name: Schermafdrukken bewaren bij een fout
         if: failure()
         uses: actions/upload-artifact@v4

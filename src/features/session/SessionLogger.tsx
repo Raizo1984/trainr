@@ -30,13 +30,14 @@ import {
   Card,
   EmptyState,
   Field,
+  Note,
   ScalePicker,
   SectionTitle,
   Select,
   SourceNote,
+  TONE_STYLE,
   TextArea,
   cx,
-  TONE_STYLE,
 } from '@/ui/primitives'
 import { useAppStore } from '@/store/useAppStore'
 import { useCurrentPhase, useDeloadInfo, usePendingFollowUps, useSafety, useTemplates } from '@/store/selectors'
@@ -233,9 +234,9 @@ function LogPanel() {
                 Weggooien
               </Button>
             </div>
-            <SourceNote>
+            <Note>
               Zolang je hem niet opslaat of weggooit, blijft hij hier staan. Er gaat niets verloren.
-            </SourceNote>
+            </Note>
           </Card>
         )}
 

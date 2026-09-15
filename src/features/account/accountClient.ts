@@ -108,3 +108,34 @@ export async function bewaarStaat(data: unknown, versie: number): Promise<Bewaar
   if (code !== 200 || typeof body?.versie !== 'number') throw fout(code, body)
   return { ok: true, versie: body.versie }
 }
+
+/* ------------------------------------------------------------------ */
+/* Wachtwoord vergeten                                                 */
+/* ------------------------------------------------------------------ */
+
+export async function herstelMogelijk(): Promise<boolean> {
+  try {
+    const { status: code, body } = await apiJson<{ mogelijk?: boolean }>('/api/account/herstel-mogelijk')
+    return code === 200 && body?.mogelijk === true
+  } catch {
+    return false
+  }
+}
+
+export async function vraagHerstel(email: string): Promise<string> {
+  const { status: code, body } = await apiJson<Antwoord>('/api/account/wachtwoord-vergeten', {
+    method: 'POST',
+    json: { email },
+  })
+  if (code !== 200) throw fout(code, body)
+  return body?.message ?? 'Als er een account bij dit adres hoort, is er een herstellink onderweg.'
+}
+
+export async function zetNieuwWachtwoord(token: string, wachtwoord: string): Promise<string> {
+  const { status: code, body } = await apiJson<Antwoord>('/api/account/wachtwoord-herstellen', {
+    method: 'POST',
+    json: { token, wachtwoord },
+  })
+  if (code !== 200) throw fout(code, body)
+  return body?.message ?? 'Je wachtwoord is gewijzigd.'
+}

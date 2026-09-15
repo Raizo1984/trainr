@@ -354,3 +354,102 @@ export async function verwijderAccount(gebruikerId: string): Promise<void> {
     }
   })
 }
+
+/* ------------------------------------------------------------------ */
+/* Wachtwoord vergeten                                                 */
+/* ------------------------------------------------------------------ */
+
+export const HERSTEL_MINUTEN = 60
+
+/**
+ * Een hersteltoken aanmaken, of niets doen als het adres onbekend is.
+ *
+ * Geeft altijd hetzelfde terug, ongeacht of het account bestaat. Zou het
+ * antwoord verschillen, dan kan iemand met een lijst e-mailadressen uitvinden
+ * wie hier een account heeft. Bij een app met gezondheidsgegevens is alleen al
+ * dat lidmaatschap gevoelige informatie.
+ */
+export async function maakHerstelToken(emailRuw: string): Promise<{ token: string; email: string } | null> {
+  const email = normaliseerEmail(emailRuw)
+  const { rows } = await db().query<{ id: string; email: string }>(
+    'select id, email from gebruikers where email = $1',
+    [email],
+  )
+  const rij = rows[0]
+  if (!rij) return null
+
+  /*
+   * Eerdere openstaande verzoeken vervallen. Anders stapelen ze op: vraag je
+   * het drie keer aan omdat de mail traag is, dan blijven er drie geldige
+   * links rondslingeren in je inbox.
+   */
+  await db().query('delete from herstel where gebruiker_id = $1 and gebruikt_op is null', [rij.id])
+
+  const token = nieuwToken()
+  const verlooptOp = new Date(Date.now() + HERSTEL_MINUTEN * 60 * 1000)
+  await db().query(
+    'insert into herstel (token_hash, gebruiker_id, verloopt_op) values ($1, $2, $3)',
+    [tokenHash(token), rij.id, verlooptOp],
+  )
+  return { token, email: rij.email }
+}
+
+/**
+ * Het wachtwoord opnieuw instellen met een token.
+ *
+ * Alle bestaande sessies gaan eruit. Wie zijn wachtwoord kwijt was, weet niet
+ * of iemand anders er ondertussen bij kon; dan is elke openstaande sessie er
+ * één te veel.
+ */
+export async function herstelWachtwoord(token: string, nieuwWachtwoord: string): Promise<void> {
+  const hash = tokenHash(token)
+
+  const gebruikerId = await inTransactie(async (client: PoolClient) => {
+    const { rows } = await client.query<{ gebruiker_id: string; gebruikt_op: Date | null; verloopt_op: Date }>(
+      'select gebruiker_id, gebruikt_op, verloopt_op from herstel where token_hash = $1 for update',
+      [hash],
+    )
+    const rij = rows[0]
+    if (!rij) {
+      throw new AccountFout(
+        'token-onbekend',
+        'Deze link werkt niet. Vraag een nieuwe aan.',
+        400,
+      )
+    }
+    if (rij.gebruikt_op !== null) {
+      throw new AccountFout(
+        'token-gebruikt',
+        'Deze link is al gebruikt. Vraag een nieuwe aan als je er weer een nodig hebt.',
+        400,
+      )
+    }
+    if (rij.verloopt_op.getTime() < Date.now()) {
+      throw new AccountFout(
+        'token-verlopen',
+        `Deze link is verlopen; hij werkt ${HERSTEL_MINUTEN} minuten. Vraag een nieuwe aan.`,
+        400,
+      )
+    }
+
+    await client.query(
+      'update gebruikers set wachtwoord_hash = $1 where id = $2',
+      [await hashWachtwoord(nieuwWachtwoord), rij.gebruiker_id],
+    )
+    await client.query('update herstel set gebruikt_op = now() where token_hash = $1', [hash])
+    await client.query('delete from sessies where gebruiker_id = $1', [rij.gebruiker_id])
+    // Ook de teller op mislukte pogingen leegmaken: je weet je wachtwoord weer.
+    const { rows: g } = await client.query<{ email: string }>(
+      'select email from gebruikers where id = $1',
+      [rij.gebruiker_id],
+    )
+    if (g[0]) await client.query('delete from inlogpogingen where sleutel = $1', [g[0].email])
+    return rij.gebruiker_id
+  })
+
+  void gebruikerId
+}
+
+export async function ruimHerstelOp(): Promise<void> {
+  await db().query('delete from herstel where verloopt_op < now()')
+}

@@ -44,6 +44,7 @@ DATABASE_URL=postgres://... npm run e2e:accounts       # de laag eronder
 DATABASE_URL=postgres://... npm run e2e:account-http   # de eindpunten
 DATABASE_URL=postgres://... npm run e2e:account-ui     # twee toestellen in de browser
 DATABASE_URL=postgres://... npm run e2e:offline-sync   # trainen zonder bereik, later synchroniseren
+DATABASE_URL=postgres://... npm run e2e:herstel        # wachtwoord vergeten, van knop tot inloggen
 ```
 
 De tests met een eigen server (`e2e:coach`, `e2e:complaint`, `e2e:report`)
@@ -124,6 +125,29 @@ dan is je training van die avond weg.
 Opnieuw proberen gebeurt bij het terugkomen van de verbinding, bij het
 terugkeren naar het tabblad, en elke minuut als vangnet voor een verbinding die
 er wel is maar niets doorlaat.
+
+## Wachtwoord vergeten
+
+Zonder herstelweg is iemand die zijn wachtwoord kwijt is permanent
+buitengesloten, en staan zijn gezondheidsgegevens onbereikbaar op de server.
+Dat raakt ook het recht op inzage.
+
+De link uit de mail werkt een uur en maar één keer. Na het instellen gaan alle
+sessies eruit, ook op andere apparaten: wie zijn wachtwoord kwijt was, weet
+niet of iemand anders er ondertussen bij kon.
+
+Het antwoord op een aanvraag is letterlijk hetzelfde of het adres bestaat of
+niet. Zou dat verschillen, dan kan iemand met een lijst adressen uitvinden wie
+hier een account heeft, en dat lidmaatschap is bij een app met
+gezondheidsgegevens op zichzelf al gevoelig. Er zit ook een grens op: drie
+aanvragen per kwartier, anders laat iemand met een script honderden mails naar
+een adres sturen dat hij niet bezit.
+
+E-mail loopt via `server/mail.ts`, met drie uitgangen: Resend als
+`RESEND_API_KEY` er staat, het logboek als `MAIL_LOGBOEK=aan`, en anders zegt
+de app eerlijk dat herstel uitstaat. Dat laatste is het punt: een herstelmail
+die nergens aankomt terwijl het scherm zegt "kijk in je inbox" laat iemand een
+uur zoeken naar iets dat niet bestaat.
 
 ## Gezondheidsgegevens en de AVG
 

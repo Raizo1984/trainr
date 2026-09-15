@@ -40,6 +40,10 @@ lijkt de coach kapot terwijl hij simpelweg niet draait.
 | `PORT` | optioneel | Standaard 5000 op Replit |
 | `DATABASE_URL` | voor accounts | Zonder database werkt de app gewoon, maar blijven gegevens op het toestel |
 | `DATABASE_SSL` | optioneel | Zet op `uit` bij een database zonder TLS, bijvoorbeeld lokaal |
+| `RESEND_API_KEY` | voor wachtwoord vergeten | Zonder e-maildienst kan niemand zijn wachtwoord herstellen |
+| `MAIL_AFZENDER` | optioneel | Bijvoorbeeld `Trainr <no-reply@jouwdomein.nl>`. Dat domein moet bij Resend geverifieerd zijn |
+| `MAIL_LOGBOEK` | optioneel | Zet op `aan` om mails in het logboek te zetten in plaats van te versturen. Alleen voor ontwikkelen |
+| `APP_URL` | aanbevolen | Het adres van je publicatie, voor de link in de herstelmail |
 
 De sleutel hoort uitsluitend in de Secrets, nooit in de code of in de browser.
 Alles wat de browser kent kan iedere bezoeker met de ontwikkelaarsconsole

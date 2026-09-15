@@ -28,7 +28,13 @@ const ok = (cond, msg) => {
 const { Client } = await import('pg')
 const schoon = new Client({ connectionString: DB })
 await schoon.connect()
-await schoon.query('drop table if exists migraties, inlogpogingen, staat, sessies, gebruikers cascade')
+/*
+ * Het hele schema weg in plaats van een lijst tabellen. Zo'n lijst raakt
+ * achter zodra er een migratie bij komt, en dan faalt de test op een tabel die
+ * nog van de vorige keer staat. Dat is precies wat hier gebeurde toen de tabel
+ * voor wachtwoordherstel erbij kwam.
+ */
+await schoon.query('drop schema public cascade; create schema public;')
 await schoon.end()
 
 const server = startServer({ PORT: String(APP_PORT), DATABASE_URL: DB, DATABASE_SSL: 'uit' })

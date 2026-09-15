@@ -14,7 +14,7 @@
 import { useState } from 'react'
 import { motion } from 'motion/react'
 import { FileText, RefreshCw } from 'lucide-react'
-import { Button, Card, SectionTitle, SourceNote } from '@/ui/primitives'
+import { Button, Card, Note, SectionTitle } from '@/ui/primitives'
 import { useAppStore } from '@/store/useAppStore'
 import { useCurrentPhase, useNutritionPlan, usePhaseWeek } from '@/store/selectors'
 import { buildCoachContext } from '@/domain/coachContext'
@@ -95,9 +95,9 @@ export function WeekReportCard({ delay = 0 }: { delay?: number }) {
         </div>
       )}
 
-      <SourceNote>
+      <Note>
         De cijfers komen uit je eigen log. Getallen in de tekst die daar niet in staan, worden geweigerd.
-      </SourceNote>
+      </Note>
     </Card>
   )
 }

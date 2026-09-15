@@ -20,6 +20,7 @@ import { cx } from '@/ui/primitives'
 import { lazyScreen } from '@/ui/lazyScreen'
 import { heeftAccount, markeerAccount, startSync, useSync } from '@/features/account/sync'
 import { status as accountStatus } from '@/features/account/accountClient'
+import { HerstelScherm, isHerstelPagina } from '@/features/account/HerstelScherm'
 import Dashboard from '@/features/dashboard/Dashboard'
 
 /**
@@ -157,6 +158,14 @@ const TABS: Array<{ id: Tab; label: string; icon: typeof Activity }> = [
 ]
 
 export default function App() {
+  /*
+   * De link uit de herstelmail komt op een eigen pad binnen. De server stuurt
+   * elk onbekend pad naar deze pagina, dus hier kijken we welk pad dat was.
+   * Dit gaat voor op alles: je komt hier zonder ingelogd te zijn, vanuit je
+   * mailprogramma, en dan hoort er niets anders in beeld te staan.
+   */
+  const [herstelPagina] = useState(isHerstelPagina)
+
   const intakeDone = useAppStore((s) => Boolean(s.intake.completedAt))
   const [tab, setTabNow] = useState<Tab>('vandaag')
   const [, startTabChange] = useTransition()
@@ -172,6 +181,8 @@ export default function App() {
   const setTab = useCallback((next: Tab) => {
     startTabChange(() => setTabNow(next))
   }, [])
+
+  if (herstelPagina) return <HerstelScherm />
 
   if (!intakeDone) {
     return (

@@ -109,6 +109,24 @@ const MIGRATIES: Array<{ naam: string; sql: string }> = [
       create index inlogpogingen_sleutel on inlogpogingen (sleutel, op);
     `,
   },
+  {
+    naam: '005-herstel',
+    sql: `
+      create table herstel (
+        -- Alleen de hash van het token, net als bij sessies. Wie de database
+        -- leest, kan daarmee geen wachtwoord van iemand anders instellen.
+        token_hash text primary key,
+        gebruiker_id uuid not null references gebruikers(id) on delete cascade,
+        aangemaakt_op timestamptz not null default now(),
+        verloopt_op timestamptz not null,
+        -- Een gebruikt token blijft staan tot het verloopt, zodat een tweede
+        -- poging een duidelijke melding kan geven in plaats van niets.
+        gebruikt_op timestamptz
+      );
+      create index herstel_gebruiker on herstel (gebruiker_id);
+      create index herstel_verloop on herstel (verloopt_op);
+    `,
+  },
 ]
 
 export async function migreer(): Promise<string[]> {

@@ -23,7 +23,7 @@ import {
   TriangleAlert,
   UserPlus,
 } from 'lucide-react'
-import { Badge, Button, Card, SectionTitle, SourceNote, cx } from '@/ui/primitives'
+import { Badge, Button, Card, Note, SectionTitle, SourceNote, cx } from '@/ui/primitives'
 import * as api from './accountClient'
 import { PRIVACY, TOESTEMMING_TEKST } from './privacy'
 import { houdServer, houdToestel, nuOpsturen, startSync, stopSync, useSync } from './sync'
@@ -63,7 +63,7 @@ export function AccountCard({ delay = 0 }: { delay?: number }) {
           terecht, maar het betekent ook dat je log weg is als je je toestel kwijtraakt. Maak
           hieronder een export als reservekopie.
         </p>
-        <SourceNote>Voor accounts moet er een database aan de server hangen.</SourceNote>
+        <Note>Voor accounts moet er een database aan de server hangen.</Note>
       </Card>
     )
   }
@@ -97,6 +97,26 @@ function AanmeldCard({ delay, onKlaar }: { delay: number; onKlaar: (s: api.Accou
   const [toonPrivacy, setToonPrivacy] = useState(false)
   const [fout, setFout] = useState<string | null>(null)
   const [bezig, setBezig] = useState(false)
+  const [vergeten, setVergeten] = useState(false)
+  const [herstelKan, setHerstelKan] = useState(false)
+  const [herstelMelding, setHerstelMelding] = useState<string | null>(null)
+
+  useEffect(() => {
+    void api.herstelMogelijk().then(setHerstelKan)
+  }, [])
+
+  const vraagLink = async () => {
+    setBezig(true)
+    setFout(null)
+    setHerstelMelding(null)
+    try {
+      setHerstelMelding(await api.vraagHerstel(email))
+    } catch (error) {
+      setFout(error instanceof Error ? error.message : 'Het lukte niet.')
+    } finally {
+      setBezig(false)
+    }
+  }
 
   const versturen = async () => {
     setBezig(true)
@@ -205,7 +225,7 @@ function AanmeldCard({ delay, onKlaar }: { delay: number; onKlaar: (s: api.Accou
         </p>
       )}
 
-      <div className="mt-3">
+      <div className="mt-3 flex flex-wrap items-center gap-3">
         <Button
           onClick={versturen}
           disabled={!kanVerder || bezig}
@@ -213,11 +233,46 @@ function AanmeldCard({ delay, onKlaar }: { delay: number; onKlaar: (s: api.Accou
         >
           {bezig ? 'Bezig' : modus === 'registreren' ? 'Account maken' : 'Inloggen'}
         </Button>
+
+        {modus === 'inloggen' && herstelKan && !vergeten && (
+          <button
+            onClick={() => {
+              setVergeten(true)
+              setFout(null)
+            }}
+            className="text-[12.5px] font-medium text-ink-3 underline underline-offset-2 hover:text-ink-2"
+          >
+            Wachtwoord vergeten?
+          </button>
+        )}
       </div>
 
-      <SourceNote>
-        Zonder account werkt alles gewoon door; je gegevens blijven dan op dit toestel.
-      </SourceNote>
+      {modus === 'inloggen' && vergeten && (
+        <div className="mt-3 rounded-xl border p-3" style={{ borderColor: 'var(--border-subtle)' }}>
+          {herstelMelding ? (
+            <p className="text-[12.5px] leading-relaxed text-ink-2" role="status">
+              {herstelMelding}
+            </p>
+          ) : (
+            <>
+              <p className="text-[12.5px] leading-relaxed text-ink-2">
+                Vul hierboven je e-mailadres in, dan sturen we een link waarmee je een nieuw
+                wachtwoord kunt kiezen. De link werkt een uur.
+              </p>
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                <Button size="sm" onClick={vraagLink} disabled={email.trim().length < 5 || bezig}>
+                  {bezig ? 'Bezig' : 'Stuur me een link'}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setVergeten(false)}>
+                  Toch niet
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      <Note>Zonder account werkt alles gewoon door; je gegevens blijven dan op dit toestel.</Note>
     </Card>
   )
 }

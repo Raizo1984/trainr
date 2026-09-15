@@ -404,8 +404,19 @@ export function EmptyState({ icon, title, body, action }: { icon?: ReactNode; ti
 /** Herkomstvermelding onder adviezen, zodat elk advies traceerbaar blijft. */
 export function SourceNote({ children }: { children: ReactNode }) {
   return (
-    <p className="mt-3 border-t border-line pt-2.5 text-[11.5px] text-ink-3">
+    <Note>
       <span className="font-medium">Bron:</span> {children}
-    </p>
+    </Note>
   )
+}
+
+/**
+ * Dezelfde kleine regel onderaan een kaart, maar zonder "Bron:".
+ *
+ * Niet elke slotregel verwijst naar de documentatie. Staat er "Bron: Zonder
+ * account werkt alles gewoon door", dan leest dat als een verwijzing naar iets
+ * wat niet bestaat.
+ */
+export function Note({ children }: { children: ReactNode }) {
+  return <p className="mt-3 border-t border-line pt-2.5 text-[11.5px] text-ink-3">{children}</p>
 }
