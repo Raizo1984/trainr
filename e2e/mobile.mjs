@@ -8,6 +8,7 @@
  */
 
 import { chromium } from 'playwright'
+import { slaWelkomOver } from './serverproces.mjs'
 
 const BASE = process.env.E2E_BASE ?? 'http://localhost:4173'
 
@@ -16,6 +17,7 @@ const b = await chromium.launch(
   process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {},
 )
 const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: 'dark' })
+await slaWelkomOver(ctx)
 await ctx.route('**', (r) => (r.request().url().startsWith(BASE) ? r.continue() : r.abort()))
 const p = await ctx.newPage()
 p.setDefaultTimeout(8000)

@@ -48,3 +48,25 @@ export async function wachtOpServer(url, pogingen = 60) {
   }
   return false
 }
+
+/**
+ * Het startscherm overslaan in een test.
+ *
+ * Nieuwe gebruikers krijgen eerst de keuze tussen een account en verder zonder
+ * account. Voor tests die iets anders onderzoeken is dat alleen ruis, dus die
+ * zetten de keuze vooraf klaar. Tests die het startscherm zelf onderzoeken,
+ * zoals e2e/welkom.mjs, doen dit juist niet.
+ */
+export async function slaWelkomOver(ctx) {
+  await ctx.addInitScript(() => {
+    try {
+      localStorage.setItem(
+        'trainr-onboarding-v1',
+        JSON.stringify({ zonderAccount: true, naIntakeGevraagd: true }),
+      )
+    } catch {
+      // Geen opslag: dan verschijnt het startscherm alsnog en faalt de test,
+      // wat beter is dan stilletjes iets anders testen.
+    }
+  })
+}

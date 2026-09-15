@@ -14,7 +14,7 @@
  */
 
 import { chromium } from 'playwright'
-import { startServer, stopServer, wachtOpServer } from './serverproces.mjs'
+import { startServer, stopServer, wachtOpServer, slaWelkomOver } from './serverproces.mjs'
 
 const APP_PORT = 4388
 const DB = process.env.DATABASE_URL
@@ -64,6 +64,7 @@ async function inDatabase() {
 // Eén browsercontext = één toestel. De opslag blijft tussen tabbladen bestaan,
 // net als op een echte telefoon die je dichtdoet en later weer opent.
 const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, colorScheme: 'dark' })
+await slaWelkomOver(ctx)
 
 try {
   /* ---- 1. Account maken met verbinding ---- */

@@ -88,6 +88,26 @@ function pakBewaarde(state: AppState): BewaardeStaat {
   return uit as BewaardeStaat
 }
 
+
+/**
+ * Bewaarde waarden over de standaard heen leggen, laag voor laag.
+ *
+ * Lijsten worden vervangen en niet samengevoegd: bij sessies of metingen is
+ * "de bewaarde lijst" het antwoord, en elementen mengen zou dubbele of halve
+ * rijen opleveren.
+ */
+export function diepSamenvoegen(standaard: unknown, bewaard: unknown): unknown {
+  if (bewaard === undefined) return standaard
+  if (bewaard === null || Array.isArray(bewaard) || typeof bewaard !== 'object') return bewaard
+  if (standaard === null || Array.isArray(standaard) || typeof standaard !== 'object') return bewaard
+
+  const uit: Record<string, unknown> = { ...(standaard as Record<string, unknown>) }
+  for (const [sleutel, waarde] of Object.entries(bewaard as Record<string, unknown>)) {
+    uit[sleutel] = diepSamenvoegen((standaard as Record<string, unknown>)[sleutel], waarde)
+  }
+  return uit
+}
+
 export const useAppStore = create<AppStore>()(
   persist(
     (set, get) => ({
@@ -233,6 +253,19 @@ export const useAppStore = create<AppStore>()(
       name: 'trainr-v1',
       version: 1,
       partialize: (state) => pakBewaarde(state),
+      /*
+       * Diep samenvoegen in plaats van de standaard oppervlakkige.
+       *
+       * Zonder dit vervangt een bewaarde `intake` het hele object, ook als er
+       * velden in ontbreken. Voeg je later een veld toe, dan leest de app bij
+       * bestaande gebruikers `intake.training.sessionMinutes` op een object dat
+       * er niet is, en dat geeft een wit scherm zonder weg terug. Precies het
+       * soort fout dat pas na een update bij anderen opvalt.
+       *
+       * Met deze samenvoeging vallen ontbrekende velden terug op de standaard
+       * en werkt de app door.
+       */
+      merge: (bewaard, huidig) => diepSamenvoegen(huidig, bewaard) as AppStore,
     },
   ),
 )

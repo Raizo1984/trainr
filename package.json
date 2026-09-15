@@ -28,7 +28,8 @@
     "e2e:account-ui": "node e2e/account-ui.mjs",
     "e2e:offline-sync": "node e2e/offline-sync.mjs",
     "e2e:concept": "node e2e/concept.mjs",
-    "e2e:herstel": "node e2e/herstel.mjs"
+    "e2e:herstel": "node e2e/herstel.mjs",
+    "e2e:welkom": "node e2e/welkom.mjs"
   },
   "repository": {
     "type": "git",

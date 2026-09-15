@@ -151,6 +151,9 @@ jobs:
       - name: Wachtwoord vergeten
         run: npm run e2e:herstel
 
+      - name: Startscherm en wie het nooit ziet
+        run: npm run e2e:welkom
+
       - name: Schermafdrukken bewaren bij een fout
         if: failure()
         uses: actions/upload-artifact@v4

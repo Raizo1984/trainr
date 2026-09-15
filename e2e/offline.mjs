@@ -10,6 +10,7 @@
  */
 
 import { chromium } from 'playwright'
+import { slaWelkomOver } from './serverproces.mjs'
 
 const BASE = process.env.E2E_BASE ?? 'http://localhost:3001'
 const b = await chromium.launch(
@@ -22,6 +23,7 @@ const ok = (cond, msg) => {
 }
 
 const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, colorScheme: 'dark' })
+await slaWelkomOver(ctx)
 const p = await ctx.newPage()
 p.setDefaultTimeout(15000)
 

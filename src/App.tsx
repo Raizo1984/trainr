@@ -21,6 +21,9 @@ import { lazyScreen } from '@/ui/lazyScreen'
 import { heeftAccount, markeerAccount, startSync, useSync } from '@/features/account/sync'
 import { status as accountStatus } from '@/features/account/accountClient'
 import { HerstelScherm, isHerstelPagina } from '@/features/account/HerstelScherm'
+import { BewaarScherm, WelkomScherm } from '@/features/account/WelkomScherm'
+import { leesKeuzes, vergeetKeuzes, zetKeuze } from '@/features/account/onboarding'
+import type { AccountStatus } from '@/features/account/accountClient'
 import Dashboard from '@/features/dashboard/Dashboard'
 
 /**
@@ -67,6 +70,89 @@ function usePrefetchScreens(active: boolean) {
       cancelAnimationFrame(frame)
     }
   }, [active])
+}
+
+/**
+ * Wie krijgt welk scherm te zien voordat de app zelf begint.
+ *
+ * Drie regels, en de eerste twee zijn er om te voorkomen dat bestaande
+ * gebruikers ineens voor een dichte deur staan:
+ *
+ * - Wie op dit toestel al een account had, of al gegevens heeft staan, ziet het
+ *   startscherm nooit. Een update mag niemand buitensluiten.
+ * - Zonder verbinding weten we niets van accounts, en dan gaat de app gewoon
+ *   open. Een inlogscherm in een sportschool zonder bereik is een app die niet
+ *   werkt.
+ * - Alleen wie helemaal nieuw is, krijgt de keuze. En daarna, na de intake, nog
+ *   één keer de vraag; niet vaker, want dan leert iemand hem wegklikken zonder
+ *   te lezen.
+ */
+type Toegang =
+  | { stand: 'wachten' }
+  | { stand: 'welkom'; gelukt: (s: AccountStatus) => void; zonderAccount: () => void }
+  | { stand: 'bewaren'; gelukt: (s: AccountStatus) => void; later: () => void }
+  | { stand: 'door' }
+
+function useToegang(intakeDone: boolean): Toegang {
+  const [status, setStatus] = useState<AccountStatus | null>(null)
+  const [keuzes, setKeuzes] = useState(leesKeuzes)
+
+  /*
+   * Eén keer vastgesteld, bij het openen. Niet elke hertekening opnieuw: een
+   * nieuwe gebruiker rondt de intake af binnen dezelfde sessie, en dan zou hij
+   * halverwege ineens als bestaande gebruiker gelden en de tweede vraag nooit
+   * krijgen.
+   */
+  const [bekendToestel] = useState(() => {
+    const staat = useAppStore.getState()
+    return heeftAccount() || staat.sessions.length > 0 || Boolean(staat.intake.completedAt)
+  })
+
+  useEffect(() => {
+    let weg = false
+    void accountStatus().then((s) => {
+      if (!weg) setStatus(s)
+    })
+    return () => {
+      weg = true
+    }
+  }, [])
+
+  // Een toestel dat de app al gebruikt, hoeft nergens op te wachten.
+  if (bekendToestel) return { stand: 'door' }
+  if (status === null) return { stand: 'wachten' }
+  if (!status.accountsMogelijk || status.gebruiker) return { stand: 'door' }
+
+  const gelukt = (nieuw: AccountStatus) => {
+    vergeetKeuzes()
+    setKeuzes(leesKeuzes())
+    setStatus(nieuw)
+    startSync()
+  }
+
+  if (!keuzes.zonderAccount) {
+    return {
+      stand: 'welkom',
+      gelukt,
+      zonderAccount: () => {
+        zetKeuze({ zonderAccount: true })
+        setKeuzes(leesKeuzes())
+      },
+    }
+  }
+
+  if (intakeDone && !keuzes.naIntakeGevraagd) {
+    return {
+      stand: 'bewaren',
+      gelukt,
+      later: () => {
+        zetKeuze({ naIntakeGevraagd: true })
+        setKeuzes(leesKeuzes())
+      },
+    }
+  }
+
+  return { stand: 'door' }
 }
 
 /**
@@ -167,6 +253,7 @@ export default function App() {
   const [herstelPagina] = useState(isHerstelPagina)
 
   const intakeDone = useAppStore((s) => Boolean(s.intake.completedAt))
+  const toegang = useToegang(intakeDone)
   const [tab, setTabNow] = useState<Tab>('vandaag')
   const [, startTabChange] = useTransition()
   const { theme, toggle } = useTheme()
@@ -184,12 +271,25 @@ export default function App() {
 
   if (herstelPagina) return <HerstelScherm />
 
+  // Zolang we niet weten of er accounts zijn, niets tonen aan iemand die nog
+  // nergens is. Een flits van het startscherm bij een bestaande gebruiker is
+  // erger dan een halve seconde leeg.
+  if (toegang.stand === 'wachten') return <div className="min-h-dvh" />
+
+  if (toegang.stand === 'welkom') {
+    return <WelkomScherm onKlaar={toegang.gelukt} onZonderAccount={toegang.zonderAccount} />
+  }
+
   if (!intakeDone) {
     return (
       <Suspense fallback={<div className="min-h-dvh" />}>
         <IntakeWizard theme={theme} onToggleTheme={toggle} />
       </Suspense>
     )
+  }
+
+  if (toegang.stand === 'bewaren') {
+    return <BewaarScherm onKlaar={toegang.gelukt} onLater={toegang.later} />
   }
 
   return (

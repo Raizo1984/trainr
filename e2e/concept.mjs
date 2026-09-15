@@ -14,6 +14,7 @@
  */
 
 import { chromium } from 'playwright'
+import { slaWelkomOver } from './serverproces.mjs'
 
 const BASE = process.env.E2E_BASE ?? 'http://localhost:3001'
 const fails = []
@@ -26,6 +27,7 @@ const b = await chromium.launch(
   process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {},
 )
 const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, colorScheme: 'dark' })
+await slaWelkomOver(ctx)
 
 async function open() {
   const p = await ctx.newPage()

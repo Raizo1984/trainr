@@ -45,6 +45,7 @@ DATABASE_URL=postgres://... npm run e2e:account-http   # de eindpunten
 DATABASE_URL=postgres://... npm run e2e:account-ui     # twee toestellen in de browser
 DATABASE_URL=postgres://... npm run e2e:offline-sync   # trainen zonder bereik, later synchroniseren
 DATABASE_URL=postgres://... npm run e2e:herstel        # wachtwoord vergeten, van knop tot inloggen
+DATABASE_URL=postgres://... npm run e2e:welkom         # wie het startscherm ziet, en wie nooit
 ```
 
 De tests met een eigen server (`e2e:coach`, `e2e:complaint`, `e2e:report`)
@@ -72,6 +73,31 @@ kost een halve dag raden.
 
 Een rood kruisje binnen een minuut is meer waard dan een compleet antwoord na
 tien, vandaar die volgorde.
+
+## Aan de deur
+
+Een nieuwe gebruiker krijgt eerst een keuze: een account maken, inloggen, of
+verder zonder account. Geen harde muur, want een registratiescherm voordat
+iemand iets van de app heeft gezien is de grootste afhaakplek die er is, en
+deze app begint al met een intake van acht stappen.
+
+De uitweg staat er dus, maar klein en met de gevolgen erbij: zonder account
+staat alles alleen op dat toestel, en dan is het weg zodra de telefoon weg is.
+Na de intake komt de vraag nog één keer, op het moment dat iemand net moeite
+heeft gedaan. Daarna niet meer, want dan leert iemand hem wegklikken zonder te
+lezen.
+
+Drie regels bepalen wie dit scherm ziet, en twee daarvan zijn er om te
+voorkomen dat bestaande gebruikers voor een dichte deur staan:
+
+- Wie op dit toestel al een account had, of al gegevens heeft staan, ziet het
+  nooit. Een update mag niemand buitensluiten.
+- Zonder verbinding weten we niets van accounts, en dan gaat de app gewoon
+  open. Een inlogscherm in een sportschool zonder bereik is een app die niet
+  werkt.
+- Alleen wie helemaal nieuw is, krijgt de keuze.
+
+`npm run e2e:welkom` controleert precies die drie gevallen.
 
 ## Accounts en synchronisatie
 

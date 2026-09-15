@@ -10,7 +10,7 @@
  */
 
 import { chromium } from 'playwright'
-import { startServer, stopServer, wachtOpServer } from './serverproces.mjs'
+import { startServer, stopServer, wachtOpServer, slaWelkomOver } from './serverproces.mjs'
 
 const APP_PORT = 4387
 const DB = process.env.DATABASE_URL
@@ -58,6 +58,7 @@ const EMAIL = 'vergeetachtig@voorbeeld.nl'
 
 try {
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, colorScheme: 'dark' })
+  await slaWelkomOver(ctx)
   const p = await ctx.newPage()
   p.setDefaultTimeout(15000)
   p.on('pageerror', (e) => ok(false, 'geen scriptfout: ' + e.message))

@@ -10,6 +10,7 @@
  */
 
 import { chromium } from 'playwright'
+import { slaWelkomOver } from './serverproces.mjs'
 
 const BASE = process.env.E2E_BASE ?? 'http://localhost:4173'
 
@@ -23,6 +24,7 @@ const step = (m) => process.stderr.write('  .. ' + m + '\n')
 
 async function fresh(scheme = 'dark') {
   const ctx = await b.newContext({ viewport: { width: 1360, height: 1000 }, deviceScaleFactor: 2, colorScheme: scheme })
+  await slaWelkomOver(ctx)
   // Externe verzoeken blokkeren: de fonts zijn in deze omgeving onbereikbaar en
   // laten de pagina anders hangen op netwerkverkeer dat niets met de app te maken heeft.
   await ctx.route('**', (route) => (route.request().url().startsWith(BASE) ? route.continue() : route.abort()))

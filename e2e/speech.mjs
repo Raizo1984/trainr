@@ -11,6 +11,7 @@
  */
 
 import { chromium } from 'playwright'
+import { slaWelkomOver } from './serverproces.mjs'
 
 const BASE = process.env.E2E_BASE ?? 'http://localhost:3001'
 const ZIN = process.env.SPEECH_ZIN ?? 'twaalf reps zestig kilo rir twee'
@@ -25,6 +26,7 @@ const ok = (cond, msg) => {
 }
 
 const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, colorScheme: 'dark' })
+await slaWelkomOver(ctx)
 
 // Nepherkenner: levert de zin meteen als definitief resultaat.
 await ctx.addInitScript((zin) => {

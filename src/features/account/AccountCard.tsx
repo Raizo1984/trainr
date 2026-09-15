@@ -89,7 +89,7 @@ export function AccountCard({ delay = 0 }: { delay?: number }) {
 
 /* ------------------------------------------------------------------ */
 
-function AanmeldCard({ delay, onKlaar }: { delay: number; onKlaar: (s: api.AccountStatus) => void }) {
+export function AanmeldCard({ delay, onKlaar }: { delay: number; onKlaar: (s: api.AccountStatus) => void }) {
   const [modus, setModus] = useState<Modus>('registreren')
   const [email, setEmail] = useState('')
   const [wachtwoord, setWachtwoord] = useState('')

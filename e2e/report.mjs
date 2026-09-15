@@ -8,7 +8,7 @@
  *   node e2e/report.mjs
  */
 
-import { startServer, stopServer, wachtOpServer } from './serverproces.mjs'
+import { startServer, stopServer, wachtOpServer, slaWelkomOver } from './serverproces.mjs'
 import http from 'node:http'
 import { chromium } from 'playwright'
 
@@ -50,6 +50,7 @@ const b = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: pr
 
 try {
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, colorScheme: 'dark' })
+  await slaWelkomOver(ctx)
   const p = await ctx.newPage()
   p.setDefaultTimeout(12000)
   p.on('pageerror', (e) => ok(false, 'geen scriptfout: ' + e.message))
