@@ -14,6 +14,7 @@ import {
   ShieldAlert,
   Sparkles,
   TrendingUp,
+  CircleDot,
 } from 'lucide-react'
 import type { Tab } from '@/App'
 import { Badge, Button, Card, ProgressRing, SectionTitle, SourceNote } from '@/ui/primitives'
@@ -33,8 +34,12 @@ import { lastNDays, peakPain, weeklyVolume } from '@/domain/analytics'
 import { AlertCard } from '@/features/coach/AlertCard'
 import { BlockReviewCard } from '@/features/coach/BlockReviewCard'
 import { ProposalsCard } from '@/features/adapt/AdjustmentCards'
+import { conceptOmvang, useConcept } from '@/features/session/conceptStore'
 
 export default function Dashboard({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
+  const conceptSets = useConcept((c) => conceptOmvang(c.sets))
+  const conceptLoopt = useConcept((c) => c.templateId !== null)
+  const lopendeSets = conceptLoopt ? conceptSets : 0
   const name = useAppStore((s) => s.intake.name)
   const sessions = useAppStore((s) => s.sessions)
   const hold = useAppStore((s) => s.medicalHold)
@@ -89,6 +94,7 @@ export default function Dashboard({ onNavigate }: { onNavigate: (tab: Tab) => vo
           paused={Boolean(hold?.active)}
           deload={deload.isDeload}
           onStart={() => onNavigate('trainen')}
+          lopendeSets={lopendeSets}
         />
 
         <Card delay={0.05}>
@@ -232,11 +238,13 @@ function NextSession({
   paused,
   deload,
   onStart,
+  lopendeSets,
 }: {
   templateName: string
   subtitle: string
   exerciseCount: number
   minutes: number
+  lopendeSets: number
   paused: boolean
   deload: boolean
   onStart: () => void
@@ -268,13 +276,25 @@ function NextSession({
           {deload && <span>Helft van de sets, zelfde gewicht</span>}
         </div>
 
+        {/*
+          Staat er een sessie open, dan hoort dat hier te staan en niet alleen
+          op het trainingsscherm. Anders moet je zelf onthouden dat je halverwege
+          was, en juist dat vergeet je als je de app een dag later weer opent.
+        */}
+        {lopendeSets > 0 && (
+          <div className="mt-3 inline-flex items-center gap-2 rounded-lg bg-white/15 px-2.5 py-1.5 text-[12.5px] font-medium">
+            <CircleDot className="size-3.5" />
+            Sessie loopt, {lopendeSets} {lopendeSets === 1 ? 'set' : 'sets'} gelogd
+          </div>
+        )}
+
         <button
           onClick={onStart}
           disabled={paused}
           className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-[14px] font-semibold transition-transform hover:scale-[1.02] active:scale-[0.99] disabled:opacity-50"
           style={{ color: 'var(--brand-1)' }}
         >
-          {paused ? 'Gepauzeerd' : 'Sessie starten'}
+          {paused ? 'Gepauzeerd' : lopendeSets > 0 ? 'Sessie hervatten' : 'Sessie starten'}
           {!paused && <ArrowRight className="size-4" />}
         </button>
       </div>

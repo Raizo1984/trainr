@@ -50,8 +50,7 @@ import { parseSpokenSet } from '@/domain/speech'
 import { useSpeech } from '@/ui/useSpeech'
 import { ComplaintCard } from './ComplaintCard'
 import { ExerciseImage } from './ExerciseImage'
-
-type Draft = Record<string, SetEntry[]>
+import { conceptDatum, conceptOmvang, isVanVandaag, useConcept } from './conceptStore'
 
 export default function SessionLogger() {
   const hold = useAppStore((s) => s.medicalHold)
@@ -120,12 +119,29 @@ function LogPanel() {
   const templates = useTemplates()
   const deload = useDeloadInfo()
 
-  const [templateIndex, setTemplateIndex] = useState(0)
+  const concept = useConcept()
+  const vandaag = todayIso()
+
+  /*
+   * Een concept van vandaag pak je meteen weer op. Eentje van een andere dag
+   * niet: die sets zijn toen gedaan, en er stilzwijgend mee doorgaan zou ze
+   * op de verkeerde dag in je grafieken zetten. Daar hoort een keuze bij.
+   */
+  const conceptSets = conceptOmvang(concept.sets)
+  const conceptVanVandaag = concept.templateId !== null && isVanVandaag(concept.begonnenOp, vandaag)
+  const oudConcept = concept.templateId !== null && !conceptVanVandaag && conceptSets > 0
+
+  const conceptIndex = templates.findIndex((t) => t.id === concept.templateId)
+  const [gekozenIndex, setGekozenIndex] = useState(0)
+  const templateIndex = conceptIndex >= 0 ? conceptIndex : gekozenIndex
+  const setTemplateIndex = setGekozenIndex
   const template = templates[templateIndex]
 
-  const [vitals, setVitals] = useState({ sleepQuality: 3 as Scale5, energy: 3 as Scale5, stress: 3 as Scale5 })
-  const [started, setStarted] = useState(false)
-  const [draft, setDraft] = useState<Draft>({})
+  const vitals = concept.vitals
+  const setVitals = (maak: (v: typeof concept.vitals) => typeof concept.vitals) =>
+    concept.zetVitals(maak(concept.vitals))
+  const draft = concept.sets
+  const [started, setStarted] = useState(conceptVanVandaag)
   const [saved, setSaved] = useState(false)
 
   const prescriptions = useMemo(
@@ -163,7 +179,10 @@ function LogPanel() {
 
     const session: SessionLog = {
       id: crypto.randomUUID(),
-      date: todayIso(),
+      // De dag waarop je begon, niet de dag waarop je opslaat. Een sessie die
+      // om 23:50 start en om 00:10 wordt opgeslagen hoort bij gisteren, en een
+      // concept dat je later hervat hoort bij de dag dat je het deed.
+      date: conceptDatum(concept.begonnenOp) ?? todayIso(),
       templateId: template.id,
       phase: phase.id,
       phaseWeek: deload.week,
@@ -176,7 +195,7 @@ function LogPanel() {
       completedAt: new Date().toISOString(),
     }
     logSession(session)
-    setDraft({})
+    concept.wis()
     setStarted(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 3200)
@@ -198,6 +217,27 @@ function LogPanel() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {oudConcept && (
+          <Card>
+            <SectionTitle
+              title="Je hebt nog een sessie openstaan"
+              subtitle={`Begonnen op ${conceptDatum(concept.begonnenOp)}, met ${conceptSets} ${conceptSets === 1 ? 'set' : 'sets'} gelogd. Die zijn toen gedaan, dus ze tellen ook op die dag.`}
+              right={<TriangleAlert className="size-4" style={{ color: 'var(--status-warn)' }} />}
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button variant="primary" size="sm" onClick={() => setStarted(true)}>
+                Afmaken en opslaan
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => concept.wis()} icon={<Trash2 className="size-4" />}>
+                Weggooien
+              </Button>
+            </div>
+            <SourceNote>
+              Zolang je hem niet opslaat of weggooit, blijft hij hier staan. Er gaat niets verloren.
+            </SourceNote>
+          </Card>
+        )}
 
         <Card>
           <SectionTitle
@@ -225,8 +265,19 @@ function LogPanel() {
               <ScalePicker value={vitals.stress} min={1} max={5} onChange={(v) => setVitals((s) => ({ ...s, stress: v as Scale5 }))} labels={['rustig', 'overbelast']} tone={vitals.stress >= 4 ? 'warn' : 'brand'} />
             </Field>
           </div>
-          <Button variant="primary" className="mt-5 w-full" onClick={() => setStarted(true)}>
-            Beginnen met {template.name}
+          <Button
+            variant="primary"
+            className="mt-5 w-full"
+            onClick={() => {
+              // Een lopend concept van vandaag niet overschrijven: dan zou
+              // "Beginnen" je eigen sets wissen.
+              if (!conceptVanVandaag) concept.begin(template.id, concept.vitals)
+              setStarted(true)
+            }}
+          >
+            {conceptVanVandaag && conceptSets > 0
+              ? `Verder met ${template.name}`
+              : `Beginnen met ${template.name}`}
           </Button>
         </Card>
 
@@ -274,7 +325,7 @@ function LogPanel() {
           prescription={prescription}
           index={index}
           sets={draft[prescription.ladderId] ?? []}
-          onChange={(sets) => setDraft((d) => ({ ...d, [prescription.ladderId]: sets }))}
+          onChange={(sets) => concept.zetSets(prescription.ladderId, sets)}
         />
       ))}
 
