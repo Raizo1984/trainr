@@ -44,6 +44,12 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      # Dezelfde tests op elke dag van de week. Een test die van de kalender
+      # afhangt slaagt anders vier dagen per week en faalt hij drie, en dat
+      # merk je op de dag dat je iets heel anders aan het doen bent.
+      - name: Tests zijn niet van de dag afhankelijk
+        run: npm run test:datum
+
       - name: Bouwen
         run: npm run build
 
@@ -159,6 +165,9 @@ jobs:
 
       - name: Startscherm en wie het nooit ziet
         run: npm run e2e:welkom
+
+      - name: Grens op wat het model mag kosten
+        run: npm run e2e:verbruik
 
       - name: Schermafdrukken bewaren bij een fout
         if: failure()

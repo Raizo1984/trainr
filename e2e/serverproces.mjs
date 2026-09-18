@@ -11,9 +11,27 @@
 
 import { spawn } from 'node:child_process'
 
+/**
+ * De grens op wat het model mag kosten staat in een test standaard ruim.
+ *
+ * Een test doet in tien seconden wat een mens op een drukke dag doet, en loopt
+ * dus tegen een grens aan die voor mensen gemaakt is. Dat zou elke andere test
+ * laten falen op iets wat er niet aan de hand is. De grens zelf wordt
+ * onderzocht in e2e/verbruik.mjs, en die zet deze waarden juist laag.
+ */
+const RUIME_GRENZEN = {
+  AI_INGELOGD_PER_MINUUT: '10000',
+  AI_INGELOGD_PER_DAG: '10000',
+  AI_INGELOGD_TOKENS: '100000000',
+  AI_ANONIEM_PER_MINUUT: '10000',
+  AI_ANONIEM_PER_DAG: '10000',
+  AI_ANONIEM_TOKENS: '100000000',
+  AI_TOKENS_PER_DAG: '0',
+}
+
 export function startServer(env = {}, { toonFouten = true } = {}) {
   const proces = spawn('npx', ['tsx', 'server/index.ts'], {
-    env: { ...process.env, ...env },
+    env: { ...process.env, ...RUIME_GRENZEN, ...env },
     stdio: ['ignore', 'pipe', 'pipe'],
     detached: true,
   })

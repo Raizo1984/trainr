@@ -31,7 +31,9 @@
     "e2e:herstel": "node e2e/herstel.mjs",
     "e2e:welkom": "node e2e/welkom.mjs",
     "e2e:sessie": "node e2e/sessie.mjs",
-    "e2e:getalveld": "node e2e/getalveld.mjs"
+    "e2e:getalveld": "node e2e/getalveld.mjs",
+    "e2e:verbruik": "node e2e/verbruik.mjs",
+    "test:datum": "node scripts/datumtests.mjs"
   },
   "repository": {
     "type": "git",

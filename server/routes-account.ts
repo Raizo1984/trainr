@@ -32,6 +32,7 @@ import {
 import { herstelBericht, mailBeschikbaar, verstuur } from './mail.ts'
 import { SESSIE_COOKIE, cookieOpties, keurEmail, keurWachtwoord } from './auth.ts'
 import { beschikbaar } from './db.ts'
+import { ruimVerbruikOp } from './verbruik.ts'
 
 /** De ingelogde gebruiker hangt aan het verzoek. */
 declare module 'express-serve-static-core' {
@@ -391,6 +392,7 @@ export function startOpruimen(): void {
       await ruimSessiesOp()
       await ruimPogingenOp()
       await ruimHerstelOp()
+      await ruimVerbruikOp()
     } catch (error) {
       console.error('Opruimen mislukte', error)
     }

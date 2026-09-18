@@ -36,6 +36,7 @@ npm run e2e:complaint # meldt een klacht en controleert het voorstel
 npm run e2e:report   # weekrapport, inclusief een verzonnen getal
 npm run e2e:wger     # het ophaalscript tegen een nep-wger
 npm run e2e:getalveld # getalvelden op een telefoonscherm
+npm run test:datum   # dezelfde tests, op elke dag van de week
 ```
 
 De accounttests vragen een lege database:
@@ -47,9 +48,11 @@ DATABASE_URL=postgres://... npm run e2e:account-ui     # twee toestellen in de b
 DATABASE_URL=postgres://... npm run e2e:offline-sync   # trainen zonder bereik, later synchroniseren
 DATABASE_URL=postgres://... npm run e2e:herstel        # wachtwoord vergeten, van knop tot inloggen
 DATABASE_URL=postgres://... npm run e2e:welkom         # wie het startscherm ziet, en wie nooit
+DATABASE_URL=postgres://... npm run e2e:verbruik       # de grens op wat het model mag kosten
 ```
 
-De tests met een eigen server (`e2e:coach`, `e2e:complaint`, `e2e:report`)
+De tests met een eigen server (`e2e:coach`, `e2e:complaint`, `e2e:report`,
+`e2e:verbruik`)
 starten elk hun eigen backend. Draai ze los van elkaar, anders botsen ze op
 dezelfde poort.
 
@@ -65,10 +68,16 @@ Twee taken, bewust gescheiden.
 De snelle taak doet de typecontrole van app en server, de unit tests, de build
 en het budget. Die geeft binnen een minuut antwoord en dekt het meeste af.
 
+Daar zit ook `npm run test:datum` bij: dezelfde tests, maar met de klok
+vastgezet op elke dag van de week en op de jaarwisseling. De app rekent overal
+met kalenderweken, en een test die daarop leunt slaagt anders vier dagen per
+week en faalt hij drie. Dat kwam één keer voor en kostte meer tijd om te
+herkennen dan om op te lossen.
+
 De browsertaak draait daarna, en alleen als de snelle groen is: de doorloop,
 offline, de lopende sessie, inspreken, de mobiele audit, de coach, klacht
-melden, het weekrapport, het wger-script en de vier accounttests tegen een
-echte PostgreSQL uit een service-container. Bij een fout worden de
+melden, het weekrapport, het wger-script, de getalvelden en de accounttests
+tegen een echte PostgreSQL uit een service-container. Bij een fout worden de
 schermafdrukken en het serverlogboek bewaard, want een rode test zonder beeld
 kost een halve dag raden.
 
@@ -492,6 +501,58 @@ De coach krijgt een samenvatting, geen dump: geen naam, geen geboortejaar, geen
 vrije notities uit de intake. Sectie 8.2 schrijft voor dat er niet meer wordt
 verzameld dan de coaching nodig heeft, en elke overbodige regel kost tokens
 zonder het advies beter te maken.
+
+### De grens op wat het model mag kosten
+
+De sleutel is veilig, maar de eindpunten die hem gebruiken staan open. Een open
+eindpunt zonder teller is een rekening die iemand anders voor je invult: één
+bezoeker met een script haalt er in een nacht meer doorheen dan een jaar normaal
+gebruik. `server/verbruik.ts` legt daarom per verzoek vast wat het gekost heeft,
+en weigert zodra een grens bereikt is (HTTP 429 met `Retry-After` en een
+melding die zegt waarom).
+
+Drie grenzen per bezoeker, elk voor een ander soort misbruik. Per minuut tegen
+een script dat in één ruk duizend verzoeken doet. Per dag tegen iemand die het
+rustig aan doet maar doorgaat. En een grens op tokens, tegen weinig verzoeken
+die elk enorm zijn; dat laatste getal is het enige dat één op één staat met wat
+je betaalt.
+
+Wie is ingelogd krijgt meer ruimte dan wie dat niet is. Een account is
+aangemaakt, heeft toestemming gegeven en is terug te vinden; een IP-adres kost
+niets om te vervangen. Een geweigerde anonieme bezoeker krijgt dat ook te lezen:
+met een account krijg je meer ruimte.
+
+Daarboven staat één grens voor alles bij elkaar. Die beschermt niet tegen één
+bezoeker maar tegen duizend, en dat is het geval dat je niet aan ziet komen.
+
+Alles is te verzetten zonder de code aan te raken:
+
+| Omgevingsvariabele | Standaard | Wat het begrenst |
+| --- | --- | --- |
+| `AI_INGELOGD_PER_MINUUT` | 10 | Verzoeken per minuut, per account |
+| `AI_INGELOGD_PER_DAG` | 80 | Verzoeken per dag, per account |
+| `AI_INGELOGD_TOKENS` | 300.000 | Tokens per dag, per account |
+| `AI_ANONIEM_PER_MINUUT` | 5 | Verzoeken per minuut, per IP-adres |
+| `AI_ANONIEM_PER_DAG` | 20 | Verzoeken per dag, per IP-adres |
+| `AI_ANONIEM_TOKENS` | 80.000 | Tokens per dag, per IP-adres |
+| `AI_TOKENS_PER_DAG` | 1.000.000 | Tokens per dag, alles bij elkaar |
+
+Op nul zetten schakelt een grens uit. Doe dat alleen als je ergens anders een
+plafond hebt staan, bijvoorbeeld een uitgavenlimiet bij OpenAI zelf: dat is de
+enige grens die echt sluitend is, want die staat aan hun kant.
+
+De teller staat in de database, want een publicatie die meeschaalt draait
+meerdere kopieën en een teller in het geheugen betekent dan gewoon tien keer
+zoveel ruimte. Draait de app zonder database, of hapert die even, dan valt de
+teller terug op het geheugen van die ene kopie. Dat is minder sluitend, en nog
+altijd oneindig veel beter dan niets.
+
+**Let op bij het instellen.** De anonieme grens rekent per IP-adres, en welk
+adres de server ziet hangt af van hoeveel proxies er voor staan. Zit er meer dan
+één tussen, dan ziet de server het adres van een proxy en delen al je anonieme
+bezoekers samen één teller. Je merkt dat doordat mensen een 429 krijgen zonder
+dat ze iets geks deden. Ingelogde gebruikers hebben er geen last van, want die
+tellen op hun account.
 
 ## Mobiel
 

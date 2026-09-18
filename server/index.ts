@@ -24,6 +24,8 @@ import { REPORT_SYSTEM } from './report.ts'
 import cookieParser from 'cookie-parser'
 import { accountRoutes, startOpruimen } from './routes-account.ts'
 import { beschikbaar as databaseBeschikbaar, migreer } from './db.ts'
+import type { NextFunction, Request } from 'express'
+import { type Bon, boekTokens, grensVoor, magHet, noteerVerzoek } from './verbruik.ts'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -75,6 +77,80 @@ const PORT = Number(process.env.PORT ?? (process.env.REPL_ID ? 5000 : 3001))
  */
 const MODEL = process.env.OPENAI_MODEL ?? 'gpt-4o'
 
+/* ------------------------------------------------------------------ */
+/* Een grens op wat het model mag kosten                               */
+/* ------------------------------------------------------------------ */
+
+declare module 'express-serve-static-core' {
+  interface Request {
+    /** De bon van dit verzoek, om er straks het aantal tokens bij te zetten. */
+    bon?: Bon
+  }
+}
+
+/**
+ * Wie dit verzoek doet.
+ *
+ * Ingelogd is een account: aangemaakt, toestemming gegeven, terug te vinden.
+ * Anders blijft er een IP-adres over, en dat kost niets om te vervangen. Beide
+ * krijgen een grens, maar niet dezelfde.
+ */
+function wieIsHet(req: Request): { sleutel: string; ingelogd: boolean } {
+  if (req.gebruiker) return { sleutel: `gebruiker:${req.gebruiker.id}`, ingelogd: true }
+  return { sleutel: `adres:${req.ip ?? 'onbekend'}`, ingelogd: false }
+}
+
+const UITLEG: Record<string, string> = {
+  'per-minuut': 'Even te snel achter elkaar. Probeer het over een minuut opnieuw.',
+  'per-dag': 'Je hebt vandaag het maximum aan vragen aan de coach gebruikt. Morgen kun je weer verder.',
+  tokens: 'Je hebt vandaag het maximum aan vragen aan de coach gebruikt. Morgen kun je weer verder.',
+  totaal: 'De coach is vandaag even niet bereikbaar. Je programma, je sessies en je logboek werken gewoon door.',
+}
+
+/**
+ * De grens op de eindpunten die het model gebruiken.
+ *
+ * Het verzoek wordt meteen genoteerd, niet pas bij een geslaagd antwoord. Een
+ * script dat honderd keer een fout uitlokt hoort ook honderd verzoeken te zijn.
+ */
+function begrens(route: string) {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    // Zonder sleutel gaat er niets naar het model, dus valt er ook niets te
+    // beschermen. Wel tellen zou betekenen dat een server die nog niet is
+    // ingesteld na twintig pogingen 429 geeft in plaats van te zeggen wat er
+    // ontbreekt, en dan zoek je het probleem op de verkeerde plek.
+    if (!process.env.OPENAI_API_KEY) {
+      next()
+      return
+    }
+
+    const { sleutel, ingelogd } = wieIsHet(req)
+    const oordeel = await magHet(sleutel, grensVoor(ingelogd))
+
+    if (!oordeel.mag) {
+      res.setHeader('Retry-After', String(oordeel.wachtSeconden))
+      res.status(429).json({
+        error: 'te-veel',
+        message:
+          UITLEG[oordeel.reden] +
+          (ingelogd || oordeel.reden === 'totaal'
+            ? ''
+            : ' Met een account krijg je meer ruimte.'),
+      })
+      return
+    }
+
+    req.bon = await noteerVerzoek(sleutel, route)
+    next()
+  }
+}
+
+/** Wat dit verzoek werkelijk gekost heeft bijschrijven. */
+function boek(req: Request, usage: { prompt_tokens?: number; completion_tokens?: number } | undefined): void {
+  if (!req.bon) return
+  void boekTokens(req.bon, (usage?.prompt_tokens ?? 0) + (usage?.completion_tokens ?? 0))
+}
+
 /** Laat de client weten of de coach bruikbaar is, zonder de sleutel te tonen. */
 app.get('/api/coach/status', (_req, res) => {
   res.json({ available: Boolean(process.env.OPENAI_API_KEY), model: MODEL })
@@ -84,7 +160,7 @@ app.get('/api/coach/status', (_req, res) => {
  * Welke modellen dit account heeft. Handig bij het instellen: zo hoef je niet
  * te gokken welke naam werkt. Geeft geen sleutel of andere gegevens prijs.
  */
-app.get('/api/coach/models', async (_req, res) => {
+app.get('/api/coach/models', begrens('modellen'), async (_req, res) => {
   if (!process.env.OPENAI_API_KEY) {
     res.status(503).json({ error: 'geen-sleutel', message: 'Geen OPENAI_API_KEY ingesteld.' })
     return
@@ -99,7 +175,7 @@ app.get('/api/coach/models', async (_req, res) => {
   }
 })
 
-app.post('/api/coach', async (req, res) => {
+app.post('/api/coach', begrens('coach'), async (req, res) => {
   if (!process.env.OPENAI_API_KEY) {
     res.status(503).json({
       error: 'geen-sleutel',
@@ -139,6 +215,7 @@ app.post('/api/coach', async (req, res) => {
     })
 
     const parsed = parseCoachResponse(completion)
+    boek(req, completion.usage)
 
     res.json({
       ...parsed,
@@ -192,7 +269,7 @@ function stuurFout(res: Response, error: unknown): void {
  * de regels die er al staan. Zo blijft hetzelfde verhaal altijd hetzelfde
  * gevolg hebben, ook als het model morgen anders formuleert.
  */
-app.post('/api/klacht', async (req, res) => {
+app.post('/api/klacht', begrens('klacht'), async (req, res) => {
   if (!process.env.OPENAI_API_KEY) {
     res.status(503).json({
       error: 'geen-sleutel',
@@ -253,6 +330,8 @@ app.post('/api/klacht', async (req, res) => {
       return
     }
 
+    boek(req, completion.usage)
+
     const gelezen = parseComplaintArguments(call.function.arguments, toegestaan)
     if (!gelezen.ok) {
       console.warn('Klacht geweigerd:', gelezen.fout)
@@ -279,7 +358,7 @@ app.post('/api/klacht', async (req, res) => {
  * alleen een verband bij. De client controleert daarna of er geen getallen in
  * staan die nergens uit volgen; gebeurt dat wel, dan toont hij het rapport niet.
  */
-app.post('/api/weekrapport', async (req, res) => {
+app.post('/api/weekrapport', begrens('weekrapport'), async (req, res) => {
   if (!process.env.OPENAI_API_KEY) {
     res.status(503).json({
       error: 'geen-sleutel',
@@ -307,6 +386,8 @@ app.post('/api/weekrapport', async (req, res) => {
         { role: 'user', content: 'Schrijf het weekrapport.' },
       ],
     })
+
+    boek(req, completion.usage)
 
     const text = completion.choices[0]?.message?.content?.trim() ?? ''
     if (!text) {

@@ -127,6 +127,25 @@ const MIGRATIES: Array<{ naam: string; sql: string }> = [
       create index herstel_verloop on herstel (verloopt_op);
     `,
   },
+  {
+    naam: '006-ai-verbruik',
+    sql: `
+      -- Elk verzoek aan het model, met wat het gekost heeft. Niet om
+      -- gebruikers te volgen maar om een rekening te begrenzen: zonder teller
+      -- kan één bezoeker het hele tegoed opmaken.
+      create table ai_verbruik (
+        id bigserial primary key,
+        -- 'gebruiker:<uuid>' of 'adres:<ip>'. Geen verwijzing naar gebruikers,
+        -- zodat een verwijderd account de teller niet meesleept.
+        sleutel text not null,
+        route text not null,
+        op timestamptz not null default now(),
+        tokens integer not null default 0
+      );
+      create index ai_verbruik_sleutel on ai_verbruik (sleutel, op);
+      create index ai_verbruik_op on ai_verbruik (op);
+    `,
+  },
 ]
 
 export async function migreer(): Promise<string[]> {

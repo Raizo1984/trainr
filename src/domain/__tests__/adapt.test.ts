@@ -435,8 +435,14 @@ describe('opbouwsnelheid in plaats van een verbod', () => {
   it('weigert wel als één set een kwart van het weekvolume is', () => {
     // Twee sessies met elk één oefening van twee sets: zo klein dat één set
     // erbij geen prikkel is maar een sprong.
+    //
+    // De acht dagen ertussen zijn geen detail. Het weekvolume telt per
+    // kalenderweek, dus twee sessies met drie dagen ertussen vallen soms in
+    // dezelfde week en soms niet, afhankelijk van welke dag het vandaag is.
+    // Dan slaagt deze test vier dagen per week en faalt hij drie, en dat zoek
+    // je later terug als een fout in de code die er niet is.
     const tiny = stateWith(
-      [0, 3].map((d) =>
+      [0, 8].map((d) =>
         makeSession(addDays(todayIso(), -d), [
           makeExercise('squat', 'squat-3', [makeSet({ reps: 10 }), makeSet({ reps: 10 })]),
         ]),
